@@ -2,26 +2,31 @@
 #define G_LED_PIN 3
 #define PIR_PIN   4
 
-volatile int presence = 0;
+volatine int status = 0;
 volatile int cnt = 0;
 
 void setup() {
   //pinMode(R_LED_PIN, OUTPUT);
-  //pinMode(G_LED_PIN, OUTPUT);
+  pinMode(G_LED_PIN, OUTPUT);
 
   pinMode(PIR_PIN, INPUT);
 
-  attachInterrupt(digitalPinToInterrupt(PIR_PIN), check_presence, FALLING);
+  attachInterrupt(digitalPinToInterrupt(PIR_PIN), check_presence, CHANGE);
 }
 
 void loop() {
-  if (presence) {
-    Serial.println(cnt);
-    presence--;
-  }
+  Serial.print("Total people count:");
+  Serial.println(cnt);
+  delay(30000);
 }
 
 void check_presence() {
-  cnt++;
-  presence++;
+  if (!status) {
+    status++;
+    cnt++;
+    digitalWrite(G_LED_PIN, HIGH);
+  } else {
+    status--;
+    digitalWrite(G_LED_PIN, LOW);
+  }
 }
