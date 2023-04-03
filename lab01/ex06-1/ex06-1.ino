@@ -16,9 +16,8 @@ char lcdDisplay[2][20];
 
 void setup() {
   Serial.begin(9600);
-  Serial.println("Lab 1.5 starting");
-  
   while (!Serial);
+  Serial.println("Lab 1.5 starting");
   
   Wire.begin();
   Wire.beginTransmission(0x27);
@@ -43,11 +42,8 @@ void loop() {
   lcd.home();
   lcd.clear();
 
-  sprintf(lcdbuf, "Temperature:%.2f\0", (float)t);
+  sprintf(lcdbuf, "Temperature: %.2f\0", (float)t);
   lcd.print(lcdbuf);
-
-  Serial.print("Temperature: ");
-  Serial.println(t);
 
   delay(5000);
 }
