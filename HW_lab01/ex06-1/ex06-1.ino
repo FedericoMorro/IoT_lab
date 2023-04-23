@@ -12,8 +12,6 @@ double r, t;
 
 LiquidCrystal_PCF8574 lcd(0x20);
 
-char lcdDisplay[2][20];
-
 void setup() {
   Serial.begin(9600);
   while (!Serial);
