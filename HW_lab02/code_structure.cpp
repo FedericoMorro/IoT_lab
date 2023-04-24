@@ -17,17 +17,25 @@ const long R0 = 100000, R1 = 100000;
 const double TK = 273.15;
 double r, temperature;
 
-uint16_t air_conditioning_intensity;
+uint8_t air_conditioning_intensity;
 float min_ac_absence;
 float max_ac_absence;
 float min_ac_presence;
 float max_ac_presence;
+uint8_t ac_pwm_value(float temp, float min, float max);
 
-uint16_t heating_intensity;
+const uint8_t min_fan_speed = 0;
+const uint8_t max_fan_speed = 255;
+
+uint8_t heating_intensity;
 float min_h_absence;
 float max_h_absence;
 float min_h_presence;
 float max_h_presence;
+uint8_t h_pwm_value(float temp, float min, float max);
+
+const uint8_t min_led_intensity = 0;
+const uint8_t max_led_intensity = 255;
 
 uint8_t presence;
 
@@ -87,8 +95,6 @@ void loop() {
     r = (1023.0 / v - 1.0) * (double)R1;
     temperature = 1.0 / ( (log(r / (double)R0) / (double)B) + (1.0 / ((double)T0 + TK))) - TK;
 
-    
-
     if (pir_presence || sound_presence) {
         presence = 1;
     }
@@ -100,7 +106,16 @@ void loop() {
         pir_presence = 0;
     }
 
-
+    if (presence) {
+        air_conditioning_intensity = ac_pwm_value(temperature, min_ac_presence, max_ac_presence);
+        heating_intensity = h_pwm_value(temperature, min_h_presence, max_h_presence);
+    }
+    else {
+        air_conditioning_intensity = ac_pwm_value(temperature, min_ac_absence, max_ac_absence);
+        heating_intensity = h_pwm_value(temperature, min_h_absence, max_h_absence);
+    }
+    analogWrite(FAN_PIN, air_conditioning_intensity);
+    analogWrite(RED_LED_PIN, heating_intensity);
 }
 
 
@@ -117,6 +132,24 @@ void on_PDM_data() {
     PDM.read(sample_buffer, bytes_available);
     // 16-bit, 2 bytes per sample
     n_samples_read = bytes_available / 2;
+}
+
+
+uint8_t ac_pwm_value(float temp, float min, float max) {
+    if (!(temp >= min && temp <= max)) {
+        return 0;
+    }
+
+    return (uint16_t) ((temp - min) / (max - min) * (max_fan_speed - min_fan_speed) + min_fan_speed);
+}
+
+
+uint8_t h_pwm_value(float temp, float min, float max) {
+    if (!(temp >= min && temp <= max)) {
+        return 0;
+    }
+
+    return (uint16_t) ((max - temp) / (max - min) * (max_led_intensity - min_led_intensity) + min_led_intensity);
 }
 
 
