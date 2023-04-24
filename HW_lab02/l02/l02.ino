@@ -6,10 +6,10 @@
 
 #define TEMPERATURE_PIN A0
 
-#define FAN_PIN       0
-#define RED_LED_PIN   0
-#define GREEN_LED_PIN 0
-#define PIR_PIN       0
+#define FAN_PIN       4
+#define RED_LED_PIN   2
+#define GREEN_LED_PIN 21
+#define PIR_PIN       7
 
 
 const int B = 4275, T0 = 25;
@@ -18,20 +18,20 @@ const double TK = 273.15;
 double r, temperature;
 
 uint8_t air_conditioning_intensity;
-float min_ac_absence;
-float max_ac_absence;
-float min_ac_presence;
-float max_ac_presence;
+float min_ac_absence = 20;
+float max_ac_absence = 25;
+float min_ac_presence = 20;
+float max_ac_presence = 30;
 uint8_t ac_pwm_value(float temp, float min, float max);
 
 const uint8_t min_fan_speed = 0;
 const uint8_t max_fan_speed = 255;
 
 uint8_t heating_intensity;
-float min_h_absence;
-float max_h_absence;
-float min_h_presence;
-float max_h_presence;
+float min_h_absence = 10;
+float max_h_absence = 15;
+float min_h_presence = 10;
+float max_h_presence = 20;
 uint8_t h_pwm_value(float temp, float min, float max);
 
 const uint8_t min_led_intensity = 0;
@@ -74,12 +74,15 @@ void setup() {
 
     PDM.onReceive(on_PDM_data);   // callback function (ISR)
     if (!PDM.begin(1, 16000)) {     // mono, 16 kHz sample frequency
-        Serial.pritln("Failed to start PDM");
+        Serial.println("Failed to start PDM");
         while (1);
     }
 
     lcd.begin(16, 2);
     lcd.setBacklight(255);
+
+    air_conditioning_intensity = 0;
+    heating_intensity = 0;
 
     pir_presence = 0;
     sound_presence = 0;
