@@ -11,6 +11,9 @@
 #define GREEN_LED_PIN 21
 #define PIR_PIN       7
 
+#define SAMPLE_BUFFER_SIZE      256
+#define BUFFER_SIZE_SAMPLES_CNT 100
+
 
 const int B = 4275, T0 = 25;
 const long R0 = 100000, R1 = 100000;
@@ -46,18 +49,25 @@ const int pir_timeout = 10 * 1000;      //30 * 60 * 1000;
 int pir_time;
 void pir_presence_isr();
 
-uint8_t sound_presence;
+uint8_t microphone_presence;
 const uint8_t n_sound_events = 2;   // tbc
 const int sound_threshold = 100;    // tbc
 const int sound_interval = 20 * 1000;   //60 * 60 * 1000;
-short sample_buffer[256];      // buffer to read sample into, each sample is 16-bit
+short sample_buffer[SAMPLE_BUFFER_SIZE];      // buffer to read sample into, each sample is 16-bit
 void on_PDM_data();
-int n_samples_read;
+int current_samples_read_cnt;
+int microphone_time;
+const int single_event_duration = 100;      // ms
+int buffer_past_samples_cnt[BUFFER_SIZE_SAMPLES_CNT];
+int current_pos;
+void update_audio_samples_cnt();
 
 LiquidCrystal_PCF8574 lcd(0x20);
 char lcd_buffer[2][21];
 void refresh_display();
 uint8_t display_state;
+
+void change_max_min();
 
 
 void setup() {
@@ -92,8 +102,14 @@ void setup() {
 
     pir_presence = 0;
     
-    sound_presence = 0;
-    n_samples_presence = 0;
+    microphone_presence = 0;
+    current_samples_read_cnt = 0;
+    microphone_time = 0;
+    for (int i=0; i<BUFFER_SIZE_SAMPLES_CNT; i++) {
+        buffer_past_samples_cnt[i] = 0;
+    }
+    current_pos = 0;
+    Scheduler.startLoop(update_audio_samples_cnt);
 
     display_state = 1;
     Scheduler.startLoop(refresh_display);
@@ -105,7 +121,7 @@ void loop() {
     r = (1023.0 / v - 1.0) * (double)R1;
     temperature = 1.0 / ( (log(r / (double)R0) / (double)B) + (1.0 / ((double)T0 + TK))) - TK;
 
-    if (pir_presence || sound_presence) {
+    if (pir_presence || microphone_presence) {
         presence = 1;
     }
     else {
@@ -128,44 +144,10 @@ void loop() {
     analogWrite(RED_LED_PIN, heating_intensity);
 
     if (Serial.available()) {
-        char a_h, M_m, p_a;
-        float value;
-        String str = Serial.readString();
-        str.trim();
-        if (sscanf(str.c_str(), "%c %c %c: %f", &a_h, &M_m, &p_a, &value) == 4) {
-            if (a_h == 'a') {
-                if (M_m == 'M') {
-                    if (p_a == 'p') {
-                        max_ac_presence = value;
-                    } else if (p_a == 'a') {
-                        max_ac_absence = value;
-                    }
-                } else if (M_m == 'm') {
-                    if (p_a == 'p') {
-                        min_ac_presence = value;
-                    } else if (p_a == 'a') {
-                        min_ac_absence = value;
-                    }
-                }
-            } else if (a_h == 'h') {
-                if (M_m == 'M') {
-                    if (p_a == 'p') {
-                        max_h_presence = value;
-                    } else if (p_a == 'a') {
-                        max_h_absence = value;
-                    }
-                } else if (M_m == 'm') {
-                    if (p_a == 'p') {
-                        min_h_presence = value;
-                    } else if (p_a == 'a') {
-                        min_h_absence = value;
-                    }
-                }
-            }
-        }
+        change_max_min();
     }
     
-    delay(100);
+    delay(1000);
 }
 
 
@@ -176,31 +158,66 @@ void pir_presence_isr() {
 
 
 void on_PDM_data() {
-    // query the number of available bytes
     int bytes_available = PDM.available();
-    // read into the sample buffer
     PDM.read(sample_buffer, bytes_available);
-    // 16-bit, 2 bytes per sample
-    n_samples_read += bytes_available / 2;
+    int n_samples_read += bytes_available / 2;
+
+    found = 0;
+    for (int i=0; i<SAMPLE_BUFFER_SIZE; i++) {
+        if (sample_buffer[i] > sound_threshold)
+            found = 1;
+    }
+
+    if (found && millis() - microphone_time > single_event_duration) {
+        current_samples_read_cnt++;
+        microphone_time = millis();
+    }
+}
+
+
+void update_audio_samples_cnt() {
+    buffer_past_samples_cnt[current_pos] = current_samples_read_cnt;
+    current_pos = (current_pos + 1) % BUFFER_SIZE_SAMPLES_CNT;
+
+    int sum;
+    for (int i=0; i<BUFFER_SIZE_SAMPLES_CNT; i++) {
+        sum += buffer_past_samples_cnt[i];
+    }
+
+    microphone_presence = (sum >= n_sound_events) ? 1:0;
+
+    delay(sound_interval / BUFFER_SIZE_SAMPLES_CNT);
 }
 
 
 uint8_t ac_pwm_value(float temp, float min, float max) {
-    if (!(temp >= min && temp <= max)) {
+    if (temp <= min) {
+        ac_percentage = 0;
         return 0;
     }
 
-    ac_percentage = (temp - min) / (max - min);
+    if (temp >= max) {
+        ac_percentage = 100;
+    } else {
+        ac_percentage = (temp - min) / (max - min);
+    }
+
     return (uint16_t) (ac_percentage * (max_fan_speed - min_fan_speed) + min_fan_speed);
 }
 
 
 uint8_t h_pwm_value(float temp, float min, float max) {
-    if (!(temp >= min && temp <= max)) {
+    if (temp >= max) {
+        ht_percentage = 0;
         return 0;
     }
 
-    ht_percentage = (max - temp) / (max - min);
+    if (temp <= min) {
+        ht_percentage = 100;
+    } else {
+        ht_percentage = (max - temp) / (max - min);
+    }
+
     return (uint16_t) (ht_percentage * (max_led_intensity - min_led_intensity) + min_led_intensity);
 }
 
@@ -233,4 +250,46 @@ void refresh_display() {
     lcd.print(lcd_buffer[1]);
 
     delay(3000);
+}
+
+
+void change_max_min() {
+    char a_h, M_m, p_a;
+    float value;
+    String str;
+    
+    str = Serial.readString();
+    str.trim();
+
+    if (sscanf(str.c_str(), "%c %c %c: %f", &a_h, &M_m, &p_a, &value) == 4) {
+        if (a_h == 'a') {
+            if (M_m == 'M') {
+                if (p_a == 'p') {
+                    max_ac_presence = value;
+                } else if (p_a == 'a') {
+                    max_ac_absence = value;
+                }
+            } else if (M_m == 'm') {
+                if (p_a == 'p') {
+                    min_ac_presence = value;
+                } else if (p_a == 'a') {
+                    min_ac_absence = value;
+                }
+            }
+        } else if (a_h == 'h') {
+            if (M_m == 'M') {
+                if (p_a == 'p') {
+                    max_h_presence = value;
+                } else if (p_a == 'a') {
+                    max_h_absence = value;
+                }
+            } else if (M_m == 'm') {
+                if (p_a == 'p') {
+                    min_h_presence = value;
+                } else if (p_a == 'a') {
+                    min_h_absence = value;
+                }
+            }
+        }
+    }
 }
