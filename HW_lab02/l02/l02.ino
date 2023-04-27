@@ -50,8 +50,8 @@ int pir_time;
 void pir_presence_isr();
 
 uint8_t microphone_presence;
-const uint8_t n_sound_events = 2;   // tbc
-const int sound_threshold = 100;    // tbc
+const uint8_t n_sound_events = 10;   // tbc
+const int sound_threshold = 10000;    // tbc
 const int sound_interval = 20 * 1000;   //60 * 60 * 1000;
 short sample_buffer[SAMPLE_BUFFER_SIZE];      // buffer to read sample into, each sample is 16-bit
 void on_PDM_data();
@@ -121,6 +121,10 @@ void loop() {
     r = (1023.0 / v - 1.0) * (double)R1;
     temperature = 1.0 / ( (log(r / (double)R0) / (double)B) + (1.0 / ((double)T0 + TK))) - TK;
 
+    if (pir_presence && (millis() - pir_time) > pir_timeout) {
+        pir_presence = 0;
+    }
+
     if (pir_presence || microphone_presence) {
         presence = 1;
     }
@@ -128,9 +132,8 @@ void loop() {
         presence = 0;
     }
 
-    if (pir_presence && (millis() - pir_time) > pir_timeout) {
-        pir_presence = 0;
-    }
+    Serial.print("PIR presence: "); Serial.print(pir_presence);
+    Serial.print("\tMicrophone presence: "); Serial.println(microphone_presence);
 
     if (presence) {
         air_conditioning_intensity = ac_pwm_value(temperature, min_ac_presence, max_ac_presence);
@@ -160,9 +163,8 @@ void pir_presence_isr() {
 void on_PDM_data() {
     int bytes_available = PDM.available();
     PDM.read(sample_buffer, bytes_available);
-    int n_samples_read += bytes_available / 2;
 
-    found = 0;
+    int found = 0;
     for (int i=0; i<SAMPLE_BUFFER_SIZE; i++) {
         if (sample_buffer[i] > sound_threshold)
             found = 1;
@@ -178,11 +180,13 @@ void on_PDM_data() {
 void update_audio_samples_cnt() {
     buffer_past_samples_cnt[current_pos] = current_samples_read_cnt;
     current_pos = (current_pos + 1) % BUFFER_SIZE_SAMPLES_CNT;
+    current_samples_read_cnt = 0;
 
-    int sum;
+    int sum = 0;
     for (int i=0; i<BUFFER_SIZE_SAMPLES_CNT; i++) {
         sum += buffer_past_samples_cnt[i];
     }
+    Serial.print("Sum of buffer cnt :"); Serial.println(sum);
 
     microphone_presence = (sum >= n_sound_events) ? 1:0;
 
@@ -197,7 +201,7 @@ uint8_t ac_pwm_value(float temp, float min, float max) {
     }
 
     if (temp >= max) {
-        ac_percentage = 100;
+        ac_percentage = 1.0;
     } else {
         ac_percentage = (temp - min) / (max - min);
     }
@@ -213,7 +217,7 @@ uint8_t h_pwm_value(float temp, float min, float max) {
     }
 
     if (temp <= min) {
-        ht_percentage = 100;
+        ht_percentage = 1.0;
     } else {
         ht_percentage = (max - temp) / (max - min);
     }
