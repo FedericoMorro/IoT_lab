@@ -50,16 +50,14 @@ int pir_time;
 void pir_presence_isr();
 
 uint8_t microphone_presence;
-const uint8_t n_sound_events = 2;   // tbc
-const int sound_threshold = 10000;    // tbc
-const int sound_interval = 2 * 1000;   //60 * 60 * 1000;
+const uint8_t n_sound_events = 2;
+const int sound_threshold = 10000;    // still to be checked
+const int sound_interval = 2 * 1000;
 short sample_buffer[SAMPLE_BUFFER_SIZE];      // buffer to read sample into, each sample is 16-bit
 void on_PDM_data();
 int current_samples_read_cnt;
 int microphone_time;
 const int single_event_duration = 100;      // ms
-int buffer_past_samples_cnt[BUFFER_SIZE_SAMPLES_CNT];
-int current_pos;
 void update_audio_samples_cnt();
 
 int light_state = 0;
@@ -85,34 +83,27 @@ void setup() {
 
     pinMode(PIR_PIN, INPUT);
     attachInterrupt(digitalPinToInterrupt(PIR_PIN), pir_presence_isr, CHANGE);
+    pir_presence = 0;
 
+    presence = 0;
+
+    air_conditioning_intensity = 0;
+    heating_intensity = 0;
+    
     PDM.onReceive(on_PDM_data);   // callback function (ISR)
     if (!PDM.begin(1, 16000)) {     // mono, 16 kHz sample frequency
         Serial.println("Failed to start PDM");
         while (1);
     }
+    microphone_presence = 0;
+    current_samples_read_cnt = 0;
+    microphone_time = 0;
+    Scheduler.startLoop(update_audio_samples_cnt);
 
     Wire.begin();
     Wire.beginTransmission(0x27);
     lcd.begin(16, 2);
     lcd.setBacklight(255);
-
-    air_conditioning_intensity = 0;
-    heating_intensity = 0;
-
-    presence = 0;
-
-    pir_presence = 0;
-    
-    microphone_presence = 0;
-    current_samples_read_cnt = 0;
-    microphone_time = 0;
-    for (int i=0; i<BUFFER_SIZE_SAMPLES_CNT; i++) {
-        buffer_past_samples_cnt[i] = 0;
-    }
-    current_pos = 0;
-    Scheduler.startLoop(update_audio_samples_cnt);
-
     display_state = 1;
     Scheduler.startLoop(refresh_display);
 }
@@ -127,12 +118,7 @@ void loop() {
         pir_presence = 0;
     }
 
-    if (pir_presence) {
-        presence = 1;
-    }
-    else {
-        presence = 0;
-    }
+    presence = (pir_presence) ? 1:0;
 
     if (microphone_presence) {        
         light_state = 1 - light_state;
@@ -186,21 +172,15 @@ void on_PDM_data() {
 
 
 void update_audio_samples_cnt() {
-    buffer_past_samples_cnt[current_pos] = current_samples_read_cnt;
-    current_pos = (current_pos + 1) % BUFFER_SIZE_SAMPLES_CNT;
-    current_samples_read_cnt = 0;
+    
+    Serial.print("Sum of buffer cnt: "); Serial.println(current_samples_read_cnt);
 
-    int sum = 0;
-    for (int i=0; i<BUFFER_SIZE_SAMPLES_CNT; i++) {
-        sum += buffer_past_samples_cnt[i];
-    }
-    Serial.print("Sum of buffer cnt: "); Serial.println(sum);
-
-    if (!microphone_presence && sum >= n_sound_events) {
+    if (!microphone_presence && current_samples_read_cnt >= n_sound_events) {
       microphone_presence = 1;
     }
+    current_samples_read_cnt = 0;
 
-    delay(sound_interval / BUFFER_SIZE_SAMPLES_CNT);
+    delay(sound_interval);
 }
 
 
