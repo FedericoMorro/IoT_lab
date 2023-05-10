@@ -1,4 +1,6 @@
 import cherrypy
+import json
+import time
 
 
 class TemperatureConverter(object):
@@ -45,13 +47,24 @@ class TemperatureConverter(object):
         return val
 
 
-    def GET(self, *uri, **params):
-        output = "Exercise 02, SW lab 01"
+    def POST(self, *uri, **params):
+        output = "Exercise 03, SW lab 01"
         converted_value = 0.0
 
-        # Home page
-        if len(uri) == 0:
-            return output
+        # Read input json and convert it to dictionary
+        try:
+            input_str = cherrypy.request.body.read()
+            if len(input_str == 0):
+                raise cherrypy.HTTPError(400, "Empty POST")
+            
+            input_dict = json.loads(input_str)
+        except Exception as exc:
+            raise cherrypy.HTTPError(400, f"Error in json file: {exc}")
+
+        # TODO: read list of values to be converted and original and target unit
+        # TODO: convert each value in the list
+        # TODO: create an output json with original and converted values list, original and target unit and timestamp
+        # NOTE: timestamp in EPOCH is given by (import time): current_time = time.time()
 
         # Check path correctness and (if so) perform conversion
         if len(uri) > 0 and uri[0] == "converter":

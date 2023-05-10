@@ -1,5 +1,4 @@
 import cherrypy
-import json
 
 
 class TemperatureConverter(object):
