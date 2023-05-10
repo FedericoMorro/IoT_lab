@@ -58,7 +58,7 @@ class TemperatureConverter(object):
         if len(uri) > 0 and uri[0] == "converter":
             # Check parameters correctness
             if len(uri) != 4:
-                raise cherrypy.HTTPError(400, "Insufficient number of parameters, expected: 3")
+                raise cherrypy.HTTPError(400, "Too short path, expected: .../converter/value/originalUnit/targetUnit")
 
             converted_value = self.convert(uri[1], uri[2], uri[3])
         else:
