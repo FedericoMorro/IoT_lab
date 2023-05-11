@@ -6,7 +6,6 @@ import time
 class TemperatureConverter(object):
     exposed = True
 
-
     def convert(self, val, original_unit, target_unit) -> float:
         zero_C_in_K = 273.15
         multiply_const_C_to_F = 9/5
@@ -49,50 +48,41 @@ class TemperatureConverter(object):
 
     def POST(self, *uri, **params):
         output = "Exercise 03, SW lab 01"
-        converted_value = 0.0
 
         # Read input json and convert it to dictionary
         try:
             input_str = cherrypy.request.body.read()
-            if len(input_str == 0):
+            if len(input_str) == 0:
                 raise cherrypy.HTTPError(400, "Empty POST")
             
-            input_dict = json.loads(input_str)
+            payload = json.loads(input_str)
+        except ValueError as exc:
+            raise cherrypy.HTTPError(400, f"Error in json file conversion: {exc}")
         except Exception as exc:
             raise cherrypy.HTTPError(400, f"Error in json file: {exc}")
 
-        # TODO: read list of values to be converted and original and target unit
-        # TODO: convert each value in the list
-        # TODO: create an output json with original and converted values list, original and target unit and timestamp
-        # NOTE: timestamp in EPOCH is given by (import time): current_time = time.time()
+        # Check input keys correctness
+        if ("values" not in payload or "originalUnit" not in payload or "targetUnit" not in payload):
+            raise cherrypy.HTTPError(400, "Requested keys not found, expected: \"value\", \"originalUnit\" and \"targetUnit\"")
+        
+        # Convert list of values
+        result_vals = []
+        for value in payload["values"]:
+            result_vals.append(self.convert(value, payload["originalUnit"], payload["targetUnit"]))
 
-        # Check path correctness and (if so) perform conversion
-        if len(uri) > 0 and uri[0] == "converter":
-            # Check parameters correctness
-            if len(uri) != 4:
-                raise cherrypy.HTTPError(400, "Too short path, expected: .../converter/value/originalUnit/targetUnit")
+        # Add fields to dict
+        payload["targetValues"] = result_vals
+        payload["timestamp"] = int(time.time())
 
-            converted_value = self.convert(uri[1], uri[2], uri[3])
-        else:
-            raise cherrypy.HTTPError(404, "Only \"/converter\" is implemented yet")
-
-        # Create json
-        output = f"""
-        {{
-	        "original": {{
-		        "value": {float(uri[1])},
-		        "unit": \"{uri[2]}\"
-	        }},
-	        "converted": {{
-		        "value": {converted_value},
-		        "unit": \"{uri[3]}\"
-	        }}
-        }}
-        """
-
+        # Convert to json file
+        try:
+            output = json.dumps(payload)
+        except ValueError as exc:
+            raise cherrypy.HTTPError(400, f"Error in json file conversion: {exc}")
+        except Exception as exc:
+            raise cherrypy.HTTPError(500, f"Failed JSON output conversion: {exc}")
+    
         return output
-
-
 
 
 if __name__=="__main__":
