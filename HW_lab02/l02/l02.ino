@@ -60,11 +60,11 @@ int microphone_time;
 const int single_event_duration = 100;      // ms
 int buffer_past_samples_cnt[BUFFER_SIZE_SAMPLES_CNT];
 int current_pos;
-void update_audio_samples_cnt();
+void loop_update_audio_samples_cnt();
 
 LiquidCrystal_PCF8574 lcd(0x20);
 char lcd_buffer[2][21];
-void refresh_display();
+void loop_refresh_display();
 uint8_t display_state;
 
 void change_max_min();
@@ -102,14 +102,14 @@ void setup() {
         buffer_past_samples_cnt[i] = 0;
     }
     current_pos = 0;
-    Scheduler.startLoop(update_audio_samples_cnt);
+    Scheduler.startLoop(loop_update_audio_samples_cnt);
 
     Wire.begin();
     Wire.beginTransmission(0x27);
     lcd.begin(16, 2);
     lcd.setBacklight(255);
     display_state = 1;
-    Scheduler.startLoop(refresh_display);
+    Scheduler.startLoop(loop_refresh_display);
 }
 
 
@@ -170,7 +170,7 @@ void on_PDM_data() {
 }
 
 
-void update_audio_samples_cnt() {
+void loop_update_audio_samples_cnt() {
     buffer_past_samples_cnt[current_pos] = current_samples_read_cnt;
     current_pos = (current_pos + 1) % BUFFER_SIZE_SAMPLES_CNT;
     current_samples_read_cnt = 0;
@@ -219,7 +219,7 @@ uint8_t h_pwm_value(float temp, float min, float max) {
 }
 
 
-void refresh_display() {
+void loop_refresh_display() {
 
     lcd.home();
     lcd.clear();
