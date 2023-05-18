@@ -33,6 +33,9 @@ String senMlEncode(String dev, double val);
 void setup() {
     Serial.begin(9600);
 
+    pinMode(TEMPERATURE_PIN, INPUT);
+    pinMode(LED_PIN, OUTPUT);
+
     while (status != WL_CONNECTED) {
         Serial.print("Attempting to connect to SSID: ");
         Serial.println(ssid);
