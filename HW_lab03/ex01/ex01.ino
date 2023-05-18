@@ -27,7 +27,7 @@ double temperature;
 // Functions prototypes
 void process(WiFiClient client);
 void printResponse(WiFiClient client, int code, String body);
-String senMlEncode(String dev, int val);
+String senMlEncode(String dev, double val);
 
 
 void setup() {
@@ -61,11 +61,17 @@ void loop() {
 
 
 void process(WiFiClient client) {
+    // String will be of the type "GET /led/1"
     String req_type = client.readStringUntil(' ');
     req_type.trim();
 
     String url = client.readStringUntil(' ');
     url.trim();
+
+    if (! (req_type == "GET")) {
+        printResponse(client, 501, "");
+        return;
+    }
 
     if (url.startsWith("/led/")) {
         String led_val = url.substring(5);

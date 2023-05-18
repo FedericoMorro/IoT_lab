@@ -2,6 +2,8 @@
 #include <ArduinoHttpClient.h>
 #include "arduino_secrets.h"
 
+
+// WiFi
 char ssid[] = SECRET_SSID;
 char pass[] = SECRET_PASS;
 
@@ -10,17 +12,38 @@ int status = WL_IDLE_STATUS;
 WiFiServer server(80);
 
 
-void printResponse(WiFiClient client, int code, String body) {
-    client.println("HTTP/1.1 " + String(code));
+// Functions prototypes
+void process(WiFiClient client);
+void printResponse(WiFiClient client, int code, String body);
 
-    if (client == 200) {
-        client.println("Content-type: application/json; charset=utf-8");
-        client.println();
-        client.println(body);
-    } else {
-        client.println();
+
+void setup() {
+    Serial.begin(9600);
+
+    while (status != WL_CONNECTED) {
+        Serial.print("Attempting to connect to SSID: ")
+        Serial.println(ssid);
+
+        status = WiFi.begin(ssid, pass);
+        delay(2000);
     }
+
+    Serial.print("Connected with IP address: ");
+    Serial.println(WiFi.localIP());
 }
+
+
+void loop() {
+    WiFiClient client = server.available();
+
+    if (client) {
+        process(client);
+        client.stop();
+    }
+
+    delay(50);
+}
+
 
 void process(WiFiClient client) {
     String req_type = client.readStringUntil(' ');
@@ -45,28 +68,15 @@ void process(WiFiClient client) {
     return;
 }
 
-void setup() {
-    Serial.begin(9600);
 
-    while (status != WL_CONNECTED) {
-        Serial.print("Attempting to connect to SSID: ")
-        Serial.println(ssid);
+void printResponse(WiFiClient client, int code, String body) {
+    client.println("HTTP/1.1 " + String(code));
 
-        status = WiFi.begin(ssid, pass);
-        delay(2000);
+    if (client == 200) {
+        client.println("Content-type: application/json; charset=utf-8");
+        client.println();
+        client.println(body);
+    } else {
+        client.println();
     }
-
-    Serial.print("Connected with IP address: ");
-    Serial.println(WiFi.localIP());
-}
-
-void loop() {
-    WiFiClient client = server.available();
-
-    if (client) {
-        process(client);
-        client.stop();
-    }
-
-    delay(50);
 }
