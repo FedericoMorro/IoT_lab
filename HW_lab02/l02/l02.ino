@@ -15,11 +15,13 @@
 #define BUFFER_SIZE_SAMPLES_CNT 100
 
 
+// Temperature sensor
 const int B = 4275, T0 = 25;
 const long R0 = 100000, R1 = 100000;
 const double TK = 273.15;
 double v, r, temperature;
 
+// Air conditioning (fan)
 uint8_t air_conditioning_intensity;
 float ac_percentage;
 float min_ac_absence = 20;
@@ -31,6 +33,7 @@ uint8_t ac_pwm_value(float temp, float min, float max);
 const uint8_t min_fan_speed = 124;    // min pwm to turn on the fan
 const uint8_t max_fan_speed = 255;
 
+// Heating system (red led)
 uint8_t heating_intensity;
 float ht_percentage;
 float min_h_absence = 20;//10;
@@ -42,13 +45,16 @@ uint8_t h_pwm_value(float temp, float min, float max);
 const uint8_t min_led_intensity = 0;
 const uint8_t max_led_intensity = 255;
 
+// Presence flag
 uint8_t presence;
 
+// Pir sensor
 uint8_t pir_presence;
 const int pir_timeout = 10 * 1000;      //30 * 60 * 1000;
 int pir_time;
 void pir_presence_isr();
 
+// Microphone
 uint8_t microphone_presence;
 const uint8_t n_sound_events = 10;   // tbc
 const int sound_threshold = 10000;    // tbc
@@ -62,11 +68,13 @@ int buffer_past_samples_cnt[BUFFER_SIZE_SAMPLES_CNT];
 int current_pos;
 void loop_update_audio_samples_cnt();
 
+// Display
 LiquidCrystal_PCF8574 lcd(0x20);
 char lcd_buffer[2][21];
 void loop_refresh_display();
 uint8_t display_state;
 
+// Input from serial
 void change_max_min();
 
 
@@ -75,6 +83,7 @@ void setup() {
     while (!Serial);
     Serial.println("Lab 2 starting");
 
+    // Pins setup
     pinMode(TEMPERATURE_PIN, INPUT);
 
     pinMode(FAN_PIN, OUTPUT);
@@ -82,10 +91,12 @@ void setup() {
     pinMode(GREEN_LED_PIN, OUTPUT);
 
     pinMode(PIR_PIN, INPUT);
-    attachInterrupt(digitalPinToInterrupt(PIR_PIN), pir_presence_isr, CHANGE);
-    pir_presence = 0;
+
 
     presence = 0;
+    
+    attachInterrupt(digitalPinToInterrupt(PIR_PIN), pir_presence_isr, CHANGE);
+    pir_presence = 0;
 
     air_conditioning_intensity = 0;
     heating_intensity = 0;
