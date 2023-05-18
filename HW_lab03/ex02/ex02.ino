@@ -13,7 +13,12 @@ char pass[] = SECRET_PASS;
 
 int status = WL_IDLE_STATUS;
 
-WiFiServer server(80);      // port 80
+char server_address[] = "127.0.0.1";    // to be modified
+int server_port = 8080;
+String body;
+
+WiFiClient wifi;
+HttpClient client = HttpClient(wifi, server_address, server_port);
 
 
 // Temperature sensor
@@ -24,13 +29,13 @@ double temperature;
 
 
 // Functions prototypes
-void process(WiFiClient client);
-void printResponse(WiFiClient client, int code, String body);
-String senMlEncode(String dev, double val);
+String senMlEncode(double val);
 
 
 void setup() {
     Serial.begin(9600);
+
+    pinMode(TEMPERATURE_PIN, INPUT);
 
     while (status != WL_CONNECTED) {
         Serial.print("Attempting to connect to SSID: ");
@@ -48,97 +53,49 @@ void setup() {
 
 
 void loop() {
-    WiFiClient client = server.available();
 
-    if (client) {
-        process(client);
-        client.stop();
-    }
+    // Read the temperature
+    double v = (double) analogRead(TEMPERATURE_PIN);
+    double r = (1023.0 / v - 1.0) * (double)R1;
+    temperature = 1.0 / ( (log(r / (double)R0) / (double)B) + (1.0 / ((double)T0 + TK))) - TK;
+    Serial.print("[DEBUG] Measured temperature: "); Serial.println(temperature);
 
-    delay(50);
-}
+    // Create the body
+    body = senMlEncode(temperature);
 
+    // Send the request
+    client.beginRequest();
+    client.post("/log");
+    client.sendHeader("Content-Type", "application/json");
+    client.sendHeader("Content-Length", body.length());
+    client.beginBody();
+    client.print(body);
+    client.endRequest();
+    int ret = client.responseStatusCode();
 
-void process(WiFiClient client) {
-    // String will be of the type "GET /led/1"
-    String req_type = client.readStringUntil(' ');
-    req_type.trim();
+    Serial.print("[DEBUG] Response status code: "); Serial.println(ret);
 
-    String url = client.readStringUntil(' ');
-    url.trim();
-
-    if (! (req_type == "GET")) {
-        printResponse(client, 501, "");
-        return;
-    }
-
-    if (url.startsWith("/led/")) {
-        String led_val = url.substring(5);
-        // Check that the url is: /led/0 or /led/0/ or /led/1 or /led/1/
-        if (! ((led_val == "0" || led_val == "1") && (url.length() == 6 || (url.length() == 7 && url.substring(6) == "/")))) {
-            printResponse(client, 400, "");
-            return;   
-        }
-        
-        int int_val = led_val.toInt();
-        digitalWrite(LED_PIN, int_val);
-
-        Serial.print("[DEBUG] LED Value: "); Serial.println(led_val);
-        printResponse(client, 200, senMlEncode("led", (double) int_val));
-    }
-    else if (url.startsWith("/temperature")) {
-        // Check that the url is: /temperature or /temperature/
-        if (! (url.length() == 12 || (url.length() == 13 && url.substring(12) == "/"))) {
-            printResponse(client, 400, "");
-            return;
-        }
-
-        double v = (double) analogRead(TEMPERATURE_PIN);
-        double r = (1023.0 / v - 1.0) * (double)R1;
-        temperature = 1.0 / ( (log(r / (double)R0) / (double)B) + (1.0 / ((double)T0 + TK))) - TK;
-
-        Serial.print("[DEBUG] Measured temperature: "); Serial.println(temperature);
-        printResponse(client, 200, senMlEncode("temperature", temperature));
-    }
-    else {
-        printResponse(clinet, 404, "");
-    }
-
-    return;
-}
-
-
-void printResponse(WiFiClient client, int code, String body) {
-    client.println("HTTP/1.1 " + String(code));
-
-    if (code == 200) {
-        client.println("Content-type: application/json; charset=utf-8");
-        client.println();
-        client.println(body);
+    // Try to re-send if error, otherwise wait for next misuration
+    if (ret == 200) {
+        delay(60000);
     } else {
-        client.println();
+        delay(1000);
     }
 }
 
 
-String senMlEncode(String dev, double val) {
-    String unit;
-
-    if (dev == "temperature") {
-        unit = "\"Cel\"";
-    } else {
-        unit = "null";
-    }
-
+String senMlEncode(double val) {
     String res = "
         {
             \"bn\": \"arduino_group_3\",
             \"e\": [
-                \"n\": \"" + dev + "\",
+                \"n\": \"temperature\",
                 \"t\": \"" + String(millis()) + "\",
                 \"v\": \"" + String(val) + "\",
-                \"u\": "+ unit +",
+                \"u\": \"Cel\",
             ]
         }
     ";
+
+    return res;
 }

@@ -6,6 +6,46 @@ import time
 class TemperatureConverter(object):
     exposed = True
 
+
+    def POST(self, *uri, **params):
+        output = "Exercise 03, SW lab 01"
+
+        # Read input json and convert it to dictionary
+        try:
+            input_str = cherrypy.request.body.read()
+            if len(input_str) == 0:
+                raise cherrypy.HTTPError(400, "Empty POST")
+            
+            payload = json.loads(input_str)
+        except ValueError as exc:
+            raise cherrypy.HTTPError(400, f"Error in json file conversion: {exc}")
+        except Exception as exc:
+            raise cherrypy.HTTPError(400, f"Error in json file: {exc}")
+
+        # Check input keys correctness
+        if ("values" not in payload or "originalUnit" not in payload or "targetUnit" not in payload):
+            raise cherrypy.HTTPError(400, "Requested keys not found, expected: \"value\", \"originalUnit\" and \"targetUnit\"")
+        
+        # Convert list of values
+        result_vals = []
+        for value in payload["values"]:
+            result_vals.append(self.convert(value, payload["originalUnit"], payload["targetUnit"]))
+
+        # Add fields to dict
+        payload["targetValues"] = result_vals
+        payload["timestamp"] = int(time.time())
+
+        # Convert to json file
+        try:
+            output = json.dumps(payload)
+        except ValueError as exc:
+            raise cherrypy.HTTPError(400, f"Error in json file conversion: {exc}")
+        except Exception as exc:
+            raise cherrypy.HTTPError(500, f"Failed JSON output conversion: {exc}")
+    
+        return output
+    
+
     def convert(self, val, original_unit, target_unit) -> float:
         zero_C_in_K = 273.15
         multiply_const_C_to_F = 9/5
@@ -45,44 +85,6 @@ class TemperatureConverter(object):
 
         return val
 
-
-    def POST(self, *uri, **params):
-        output = "Exercise 03, SW lab 01"
-
-        # Read input json and convert it to dictionary
-        try:
-            input_str = cherrypy.request.body.read()
-            if len(input_str) == 0:
-                raise cherrypy.HTTPError(400, "Empty POST")
-            
-            payload = json.loads(input_str)
-        except ValueError as exc:
-            raise cherrypy.HTTPError(400, f"Error in json file conversion: {exc}")
-        except Exception as exc:
-            raise cherrypy.HTTPError(400, f"Error in json file: {exc}")
-
-        # Check input keys correctness
-        if ("values" not in payload or "originalUnit" not in payload or "targetUnit" not in payload):
-            raise cherrypy.HTTPError(400, "Requested keys not found, expected: \"value\", \"originalUnit\" and \"targetUnit\"")
-        
-        # Convert list of values
-        result_vals = []
-        for value in payload["values"]:
-            result_vals.append(self.convert(value, payload["originalUnit"], payload["targetUnit"]))
-
-        # Add fields to dict
-        payload["targetValues"] = result_vals
-        payload["timestamp"] = int(time.time())
-
-        # Convert to json file
-        try:
-            output = json.dumps(payload)
-        except ValueError as exc:
-            raise cherrypy.HTTPError(400, f"Error in json file conversion: {exc}")
-        except Exception as exc:
-            raise cherrypy.HTTPError(500, f"Failed JSON output conversion: {exc}")
-    
-        return output
 
 
 if __name__=="__main__":

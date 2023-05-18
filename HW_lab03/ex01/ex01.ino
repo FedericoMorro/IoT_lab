@@ -145,4 +145,6 @@ String senMlEncode(String dev, double val) {
             ]
         }
     ";
+
+    return res;
 }
