@@ -4,13 +4,11 @@
 char ssid[] = SECRET_SSID;
 char pass[] = SECRET_PASS;
 
+#define LED_PIN 2
+
 int status = WL_IDLE_STATUS;
 
-char server_address[] = "";
-char server_port[]    = "";
-
-WifIClient wifi;
-HttpClient client = HttpClient(wifi, server_address, server_port);
+WiFiServer server(80);
 
 void printResponse(WiFiClient client, int code, String body) {
     client.println("HTTP/1.1 " + String(code));
@@ -22,6 +20,43 @@ void printResponse(WiFiClient client, int code, String body) {
     } else {
         client.println();
     }
+}
+
+String senMlEncode(String dev, int val) {
+    String res = "
+        {
+            \"bn\": \"arduino_group_3\",
+            \"e\": [
+                \"n\": \"" + dev + "\",
+                \"t\": \"" + String(millis()) + "\",
+                \"v\": \"" + String(val) + "\",
+                \"u\": \"" +  + "\",
+            ]
+        }
+    "
+}
+
+void process(WiFiClient client) {
+    String req_type = client.readStringUntil(' ');
+    req_type.trim();
+
+    String url = client.readStringUntil(' ');
+    url.trim();
+
+    if (url.startsWith("/led/")) {
+        String led_val = url.substring(5);
+
+        Serial.print("[DEBUG] LED Value: ");
+        Serial.println(led_val);
+
+        if (led_val == "0" || led_val == "1") {
+            int int_val = led_val.toInt();
+            digitalWrite(LED_PIN, int_val);
+            printResponse(client, 200, senMlEncode("led", int_val));
+        }
+    }
+
+    return;
 }
 
 void setup() {
@@ -40,12 +75,12 @@ void setup() {
 }
 
 void loop() {
-    client.beginRequest();
-    client.post("/log");
-    client.sendHeader("Content-Type", "application.json");
-    client.sendHeader("Content-Length", body.length());
-    client.beginBody();
-    client.print(body);
-    client.endRequest();
-    int ret = client.responseStatusCode();
+    WiFiClient client = server.available();
+
+    if (client) {
+        process(client);
+        client.stop();
+    }
+
+    delay(50);
 }
