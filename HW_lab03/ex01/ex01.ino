@@ -27,7 +27,7 @@ double temperature;
 // Functions prototypes
 void process(WiFiClient client);
 void printResponse(WiFiClient client, int code, String body);
-String senMlEncode(String dev, double val);
+String senMlEncode(String dev, float val);
 
 
 void setup() {
@@ -102,7 +102,7 @@ void process(WiFiClient client) {
         temperature = 1.0 / ( (log(r / (double)R0) / (double)B) + (1.0 / ((double)T0 + TK))) - TK;
 
         Serial.print("[DEBUG] Measured temperature: "); Serial.println(temperature);
-        printResponse(client, 200, senMlEncode("temperature", temperature));
+        printResponse(client, 200, senMlEncode("temperature", (float) temperature));
     }
     else {
         printResponse(clinet, 404, "");
@@ -125,7 +125,7 @@ void printResponse(WiFiClient client, int code, String body) {
 }
 
 
-String senMlEncode(String dev, double val) {
+String senMlEncode(String dev, float val) {
     String unit;
 
     if (dev == "temperature") {
@@ -136,11 +136,11 @@ String senMlEncode(String dev, double val) {
 
     String res = "
         {
-            \"bn\": \"arduino_group_3\",
+            \"bn\": \"ArduinoGroup3\",
             \"e\": [
                 \"n\": \"" + dev + "\",
-                \"t\": \"" + String(millis()) + "\",
-                \"v\": \"" + String(val) + "\",
+                \"t\": " + String(int(millis()/1000)) + ",
+                \"v\": " + String(val) + ",
                 \"u\": "+ unit +",
             ]
         }

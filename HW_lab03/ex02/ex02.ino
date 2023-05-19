@@ -87,11 +87,11 @@ void loop() {
 String senMlEncode(double val) {
     String res = "
         {
-            \"bn\": \"arduino_group_3\",
+            \"bn\": \"ArduinoGroup3\",
             \"e\": [
                 \"n\": \"temperature\",
-                \"t\": \"" + String(millis()) + "\",
-                \"v\": \"" + String(val) + "\",
+                \"t\": " + String(int(millis()/1000)) + ",
+                \"v\": " + String(val) + ",
                 \"u\": \"Cel\",
             ]
         }
