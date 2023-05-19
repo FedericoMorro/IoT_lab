@@ -105,7 +105,7 @@ void process(WiFiClient client) {
         printResponse(client, 200, senMlEncode("temperature", (float) temperature));
     }
     else {
-        printResponse(clinet, 404, "");
+        printResponse(client, 404, "");
     }
 
     return;
@@ -134,16 +134,16 @@ String senMlEncode(String dev, float val) {
         unit = "null";
     }
 
-    String res = "
-        {
-            \"bn\": \"ArduinoGroup3\",
-            \"e\": [
-                \"n\": \"" + dev + "\",
-                \"t\": " + String(int(millis()/1000)) + ",
-                \"v\": " + String(val) + ",
-                \"u\": "+ unit +",
-            ]
-        }
+    String res = "\
+        {\
+            \"bn\": \"ArduinoGroup3\",\
+            \"e\": [\
+                \"n\": \"" + dev + "\",\
+                \"t\": " + String(int(millis()/1000)) + ",\
+                \"v\": " + String(val) + ",\
+                \"u\": "+ unit +",\
+            ]\
+        }\
     ";
 
     return res;

@@ -47,8 +47,6 @@ void setup() {
 
     Serial.print("Connected with IP address: ");
     Serial.println(WiFi.localIP());
-
-    server.begin();
 }
 
 
@@ -85,16 +83,16 @@ void loop() {
 
 
 String senMlEncode(double val) {
-    String res = "
-        {
-            \"bn\": \"ArduinoGroup3\",
-            \"e\": [
-                \"n\": \"temperature\",
-                \"t\": " + String(int(millis()/1000)) + ",
-                \"v\": " + String(val) + ",
-                \"u\": \"Cel\",
-            ]
-        }
+    String res = "\
+        {\
+            \"bn\": \"ArduinoGroup3\",\
+            \"e\": [\
+                \"n\": \"temperature\",\
+                \"t\": " + String(int(millis()/1000)) + ",\
+                \"v\": " + String(val) + ",\
+                \"u\": \"Cel\",\
+            ]\
+        }\
     ";
 
     return res;

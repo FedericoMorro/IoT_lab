@@ -44,7 +44,7 @@ WiFiClient wifi;
 // Callback definition
 void callback(char *topic, byte *payload, unsigned int length) {
     
-    DeserializationError = deserializeJson(doc_rec, (char *) payload);
+    DeserializationError err = deserializeJson(doc_rec, (char *) payload);
 
     if (err) {
         Serial.print("deserializeJson() failed with code: ");
@@ -86,14 +86,12 @@ void setup() {
 
     Serial.print("Connected with IP address: ");
     Serial.println(WiFi.localIP());
-
-    server.begin();
 }
 
 
 void loop() {
 
-    if (client.stat() != MQTT_CONNECTED) {
+    if (client.state() != MQTT_CONNECTED) {
         reconnect();
     }
 
