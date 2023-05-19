@@ -1,8 +1,39 @@
 import cherrypy
+import json
 
 
 class TemperatureConverter(object):
     exposed = True
+
+
+    def POST(self, *uri, **params):
+        output = ""
+
+        # Check path correctness and (if so) save into the log
+        if len(uri) == 1 and uri[0] == "log":
+            # Read input json and convert it to dictionary
+            try:
+                input_str = cherrypy.request.body.read()
+                if len(input_str) == 0:
+                    raise cherrypy.HTTPError(400, "Empty POST")
+
+                payload = json.loads(input_str)
+            except ValueError as exc:
+                raise cherrypy.HTTPError(400, f"Error in json file conversion: {exc}")
+            except Exception as exc:
+                raise cherrypy.HTTPError(400, f"Error in json file: {exc}")
+            
+            # Add the dictionary to the list
+            if cherrypy.session.get("log") is None:
+                cherrypy.session["log"] = []
+            cherrypy.session["log"].append(payload)
+
+            output = "New log element correctly stored"
+            
+        else:
+            raise cherrypy.HTTPError(404, "Only \"/log\" is implemented yet")
+        
+        return output
 
 
     def GET(self, *uri, **params):
@@ -20,23 +51,36 @@ class TemperatureConverter(object):
                 raise cherrypy.HTTPError(400, "Too short path, expected: .../converter/value/originalUnit/targetUnit")
 
             converted_value = self.convert(uri[1], uri[2], uri[3])
+
+            # Create json
+            output = f"""
+            {{
+                "original": {{
+                    "value": {float(uri[1])},
+                    "unit": \"{uri[2]}\"
+                }},
+                "converted": {{
+                    "value": {converted_value},
+                    "unit": \"{uri[3]}\"
+                }}
+            }}
+            """
+
+        elif len(uri) == 1 and uri[0] == "log":
+            if cherrypy.session.get("log") is None:
+                return ""
+            
+            # Convert log to json file
+            try:
+                output = json.dumps(cherrypy.session.get("log"))
+            except ValueError as exc:
+                raise cherrypy.HTTPError(400, f"Error in json file conversion: {exc}")
+            except Exception as exc:
+                raise cherrypy.HTTPError(500, f"Failed JSON output conversion: {exc}")
+        
         else:
-            raise cherrypy.HTTPError(404, "Only \"/converter\" is implemented yet")
-
-        # Create json
-        output = f"""
-        {{
-	        "original": {{
-		        "value": {float(uri[1])},
-		        "unit": \"{uri[2]}\"
-	        }},
-	        "converted": {{
-		        "value": {converted_value},
-		        "unit": \"{uri[3]}\"
-	        }}
-        }}
-        """
-
+            raise cherrypy.HTTPError(404, "Only \"/converter\" and \"log\" are implemented yet")
+        
         return output
     
 
