@@ -13,7 +13,7 @@ char pass[] = SECRET_PASS;
 
 int status = WL_IDLE_STATUS;
 
-char server_address[] = "192.168.116.123";    // to be modified
+char server_address[] = "192.168.14.123";    // to be modified
 int server_port = 8080;
 String body;
 
