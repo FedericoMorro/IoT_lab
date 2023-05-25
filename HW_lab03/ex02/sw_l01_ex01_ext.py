@@ -44,7 +44,7 @@ class TemperatureConverter(object):
         # Check path correctness and (if so) perform conversion
         if len(uri) == 1 and uri[0] == "log":
             if cherrypy.session.get("log") is None:
-                print("session 'log' is none")
+                print("[DEBUG] Session 'log' is none")
                 return ""
             
             # Convert log to json file
@@ -56,51 +56,9 @@ class TemperatureConverter(object):
                 raise cherrypy.HTTPError(500, f"Failed JSON output conversion: {exc}")
         
         else:
-            raise cherrypy.HTTPError(404, "Only \"/converter\" and \"log\" are implemented yet")
+            raise cherrypy.HTTPError(404, "Only \"log\" is implemented yet")
         
         return output
-    
-
-    def convert(self, val, original_unit, target_unit) -> float:
-        zero_C_in_K = 273.15
-        multiply_const_C_to_F = 9/5
-        offset_C_to_F = 32
-
-        original_unit = original_unit.upper()
-        target_unit = target_unit.upper()
-
-        # Check input units
-        if original_unit not in ['C', 'K', 'F']:
-            raise cherrypy.HTTPError(400, f"Original unit not recognized ({original_unit}), expected: \"C\", \"K\" or \"F\"")
-        if target_unit not in ['C', 'K', 'F']:
-            raise cherrypy.HTTPError(400, f"Target unit not recognized ({target_unit}), expected: \"C\", \"K\" or \"F\"")
-        
-        if original_unit == target_unit:
-            raise cherrypy.HTTPError(400, "The original unit and the target unit are the same")     # explain why bad request
-        
-        # Check input value
-        try:
-            val = float(val)
-        except ValueError:
-            raise cherrypy.HTTPError(400, f"Error in value type ({val}), expected: int or float")
-        except Exception as exc:
-            raise cherrypy.HTTPError(400, f"An exception occured: {exc}")
-        
-        # Convert all in Celsius
-        if original_unit == 'K':
-            val = val - zero_C_in_K
-        elif original_unit == 'F':
-            val = (val - offset_C_to_F) / multiply_const_C_to_F
-
-        # Convert to target unit (if different from Celsius)
-        if target_unit == 'K':
-            val = val + zero_C_in_K
-        elif target_unit == 'F':
-            val = (val * multiply_const_C_to_F) + offset_C_to_F
-
-        return val
-
-
 
 
 if __name__=="__main__":
