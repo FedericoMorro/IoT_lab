@@ -25,10 +25,10 @@ class TemperatureConverter(object):
             
             # Add the dictionary to the list
             if cherrypy.session.get("log") is None:
-                cherrypy.session["log"] = []
+                cherrypy.session["log"] = list()
             cherrypy.session["log"].append(payload)
 
-            output = "New log element correctly stored"
+            output = "[DEBUG] New log element correctly stored"
             
         else:
             raise cherrypy.HTTPError(404, "Only \"/log\" is implemented yet")
@@ -37,39 +37,14 @@ class TemperatureConverter(object):
 
 
     def GET(self, *uri, **params):
-        output = "Exercise 01, SW lab 01"
-        converted_value = 0.0
-
         # Home page
         if len(uri) == 0:
             return output
 
         # Check path correctness and (if so) perform conversion
-        if len(uri) == 1 and uri[0] == "converter":
-            # Check parameters correctness
-            if len(params) != 3:
-                raise cherrypy.HTTPError(400, "Insufficient number of parameters, expected: 3")
-            elif not ("value" in params and "originalUnit" in params and "targetUnit" in params):
-                raise cherrypy.HTTPError(400, "Wrong parameters, expected: \"value\", \"originalUnit\" and \"targetUnit\"")
-
-            converted_value = self.convert(params["value"], params["originalUnit"], params["targetUnit"])
-
-            # Create json
-            output = f"""
-            {{
-                "original": {{
-                    "value": {float(params['value'])},
-                    "unit": \"{params['originalUnit']}\"
-                }},
-                "converted": {{
-                    "value": {converted_value},
-                    "unit": \"{params['targetUnit']}\"
-                }}
-            }}
-            """
-        
-        elif len(uri) == 1 and uri[0] == "log":
+        if len(uri) == 1 and uri[0] == "log":
             if cherrypy.session.get("log") is None:
+                print("session 'log' is none")
                 return ""
             
             # Convert log to json file
@@ -138,7 +113,7 @@ if __name__=="__main__":
     
     cherrypy.tree.mount(TemperatureConverter(), '/', conf)
 
-    cherrypy.config.update({'server.socket_host': '127.0.0.1'})
+    cherrypy.config.update({'server.socket_host': '192.168.116.123'}) # to be modified
     cherrypy.config.update({'server.socket_port': 8080})
 
     cherrypy.engine.start()

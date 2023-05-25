@@ -137,12 +137,12 @@ String senMlEncode(String dev, float val) {
     String res = "\
         {\
             \"bn\": \"ArduinoGroup3\",\
-            \"e\": [\
+            \"e\": [{\
                 \"n\": \"" + dev + "\",\
                 \"t\": " + String(int(millis()/1000)) + ",\
                 \"v\": " + String(val) + ",\
-                \"u\": "+ unit +",\
-            ]\
+                \"u\": "+ unit +"\
+            }]\
         }\
     ";
 
