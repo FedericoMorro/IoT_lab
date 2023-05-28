@@ -2,7 +2,7 @@ import cherrypy
 import json
 
 
-class TemperatureConverter(object):
+class TemperatureLogger(object):
     exposed = True
 
 
@@ -18,17 +18,25 @@ class TemperatureConverter(object):
                     raise cherrypy.HTTPError(400, "Empty POST")
 
                 payload = json.loads(input_str)
+
             except ValueError as exc:
                 raise cherrypy.HTTPError(400, f"Error in json file conversion: {exc}")
+            
             except Exception as exc:
                 raise cherrypy.HTTPError(400, f"Error in json file: {exc}")
             
             # Add the dictionary to the list
-            if cherrypy.session.get("log") is None:
+            if "log" not in cherrypy.session:
                 cherrypy.session["log"] = list()
-            cherrypy.session["log"].append(payload)
+            
+            try:
+                cherrypy.session["log"].append(payload)
+                output = "[DEBUG] New log element correctly stored"
+            except Exception as exc:
+                print("[DEBUG - ERROR] appending request in log")
 
-            output = "[DEBUG] New log element correctly stored"
+            print(output)
+
             
         else:
             raise cherrypy.HTTPError(404, "Only \"/log\" is implemented yet")
@@ -69,9 +77,9 @@ if __name__=="__main__":
         }
     }
     
-    cherrypy.tree.mount(TemperatureConverter(), '/', conf)
+    cherrypy.tree.mount(TemperatureLogger(), '/', conf)
 
-    cherrypy.config.update({'server.socket_host': '192.168.14.123'}) # to be modified
+    cherrypy.config.update({'server.socket_host': '192.168.255.123'}) # to be modified
     cherrypy.config.update({'server.socket_port': 8080})
 
     cherrypy.engine.start()

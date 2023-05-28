@@ -13,7 +13,7 @@ char pass[] = SECRET_PASS;
 
 int status = WL_IDLE_STATUS;
 
-char server_address[] = "192.168.14.123";    // to be modified
+char server_address[] = "192.168.255.123";    // to be modified
 int server_port = 8080;
 String body;
 
@@ -64,18 +64,34 @@ void loop() {
     // Send the request
     client.beginRequest();
     client.post("/log");
-    client.sendHeader("Content-Type", "application/json");
+
+    /* 
+     * change session_id in the cookie header according to postman session_id, it will be
+     * automatically reassigned at the first request it makes
+     * 
+     * we use postman session_id so that with a GET request from postman we can see the
+     * log, otherwise, the requests of the Arduino will be saved in another log session
+     * used just for Arduino
+     *
+     * using the same session_id, although it is probably a very bad practice, allows us
+     * to have no issue in visualizing the log
+     */
+    client.sendHeader("Cookie", "session_id=629edc8b148df01e95e953b8641c53fc3c6959f4");
+    client.sendHeader("Content-Type", "text/plain");
     client.sendHeader("Content-Length", body.length());
+    client.sendHeader("Accept", "*/*");
+    client.sendHeader("Accept-Encoding", "gzip, deflate, br");
+    client.sendHeader("Connection", "keep-alive");
     client.beginBody();
     client.print(body);
     client.endRequest();
     int ret = client.responseStatusCode();
 
-    Serial.print("[DEBUG] Response status code: "); Serial.println(ret);
+    Serial.print("[DEBUG] Response code: " + String(ret) + "\n");
 
     // Try to re-send if error, otherwise wait for next misuration
     if (ret == 200) {
-        delay(60000);
+        delay(5000);
     } else {
         delay(1000);
     }
@@ -83,17 +99,8 @@ void loop() {
 
 
 String senMlEncode(double val) {
-    String res = "\
-        {\
-            \"bn\": \"ArduinoGroup3\",\
-            \"e\": [{\
-                \"n\": \"temperature\",\
-                \"t\": " + String(int(millis()/1000)) + ",\
-                \"v\": " + String(val) + ",\
-                \"u\": \"Cel\"\
-            }]\
-        }\
-    ";
+    String res = "{\"bn\":\"ArduinoGroup3\",\"e\":[{\"n\":\"temperature\",\"t\":" + String(int(millis()/1000)) + ",\"v\":" + String(val) + ",\"u\":\"Cel\"}]}";
+    Serial.print(res + " "); Serial.println(res.length());
 
     return res;
 }
