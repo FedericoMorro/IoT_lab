@@ -1,9 +1,33 @@
 import sqlite3
 
 
+DB_NAME = "/SW_lab02/ex01/db_catalog.db"
+
+
+def create_connection(db_file):
+    connection = None
+    try:
+        connection = sqlite3.connect(db_file)
+        print(sqlite3.version)
+    except sqlite3.Error as err:
+        print(err)
+    
+    return connection
+
+
+def execute_query(connection, query):
+    cursor = None
+    try:
+        cursor = connection.cursor()
+        cursor.execute(query)
+    except sqlite3.Error as err:
+        print(err)
+
+    return cursor.fetchall()
+
+
 def main():
-    db_name = "/SW_lab02/ex01/db_catalog.db"
-    db_connection = create_connection(db_name)
+    db_connection = create_connection(DB_NAME)
     
     queries = [
         "DROP TABLE IF EXISTS devices;",
@@ -79,25 +103,7 @@ def main():
     for query in queries:
         execute_query(db_connection, query)
 
-
-def create_connection(db_file):
-    """ create a database connection to a SQLite database """
-    connection = None
-    try:
-        connection = sqlite3.connect(db_file)
-        print(sqlite3.version)
-    except sqlite3.Error as err:
-        print(err)
-    
-    return connection
-
-
-def execute_query(connection, query):
-    try:
-        cursor = connection.cursor()
-        cursor.execute(query)
-    except sqlite3.Error as err:
-        print(err)
+    db_connection.close()
 
 
 if __name__=='__main__':

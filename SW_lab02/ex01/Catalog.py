@@ -2,6 +2,12 @@ import cherrypy
 import paho.mqtt.client as PahoMQTT
 import sqlite3
 import json
+import time
+
+DB_NAME = "/SW_lab02/ex01/db_catalog.db"
+DB_TABLES = ["devices", "device_end_points", "device_resources",
+             "users", "user_emails",
+             "services", "service_end_points"]
 
 
 class Catalog():
@@ -9,7 +15,18 @@ class Catalog():
 
 
     def __init__(self):
-        pass
+        self._db_name = DB_NAME
+        self._max_timestamp = 120
+
+        self._loop()
+
+
+    def _loop(self):
+        while True:
+            
+            # TODO: check if timestamps are too old and delete them
+            
+            time.sleep(60)
 
 
     def GET(self, *uri, **params):      # retrieve
@@ -26,6 +43,26 @@ class Catalog():
 
     def DELETE(self, *uti, **params):   # delete
         pass
+
+
+    def _execute_query(self, query):
+        connection = None
+        cursor = None
+
+        try:
+            connection = sqlite3.connect(self._db_name)
+        except sqlite3.Error as err:
+            print(err)
+            cherrypy.HTTPError(500, "Error in connection to the database")
+
+        try:
+            cursor = connection.cursor()
+            cursor.execute(query)
+        except sqlite3.Error as err:
+            print(err)
+            cherrypy.HTTPError(500, f"Error in querying the database\nQuery:\n{query}")
+
+        return cursor.fetchall()
 
 
 
