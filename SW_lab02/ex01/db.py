@@ -47,11 +47,9 @@ def main():
         """
         CREATE TABLE device_end_points (
             deviceId VARCHAR(32),
-            ip VARCHAR(32),
-            port INTEGER,
-            type CHAR(4),
-            topic VARCHAR(200) NULL,
-            PRIMARY KEY(deviceId, ip, port, type),
+            end_point VARCHAR(200),
+            type CHAR(4) NOT NULL,
+            PRIMARY KEY(deviceId, end_point),
             FOREIGN KEY(deviceId) REFERENCES devices(deviceId) ON DELETE CASCADE ON UPDATE CASCADE 
         );
         """,
@@ -90,11 +88,9 @@ def main():
         """
         CREATE TABLE service_end_points (
             serviceId VARCHAR(32),
-            ip VARCHAR(32),
-            port INTEGER,
-            type CHAR(4),
-            topic VARCHAR(200) NULL,
-            PRIMARY KEY(serviceId, ip, port, type),
+            end_point VARCHAR(200),
+            type CHAR(4) NOT NULL,
+            PRIMARY KEY(deviceId, end_point),
             FOREIGN KEY(serviceId) REFERENCES services(serviceId) ON DELETE CASCADE ON UPDATE CASCADE 
         );
         """
