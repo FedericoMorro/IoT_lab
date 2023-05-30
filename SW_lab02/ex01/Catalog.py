@@ -34,14 +34,65 @@ class Catalog():
 
 
     def POST(self, *uri, **params):     # create
-        pass
+        
+        # Check path correctness
+        if not (len(uri) == 1 and uri[0] == "register"):
+            cherrypy.HTTPError(404, "Only POST on \"register\" is implemented")
+        
+        # Get payload and convert it to JSON
+        try:
+            input_str = cherrypy.request.body.read()
+            if len(input_str) == 0:
+                cherrypy.HTTPError(400, "Empty POST")
+        
+            input_dict = json.loads(input_str)
+
+        except ValueError as exc:
+            cherrypy.HTTPError(400, f"Error in JSON to dictionary conversion: {exc}")
+        except Exception as exc:
+            cherrypy.HTTPError(400, f"An exception occurred: {exc}")
+
+        # Add the new item to the database
+        try:
+            type = input_dict["type"]
+            timestamp = time.time()
+            
+            # Add the item in main tables and referenced ones
+            if type == "device":
+                query = f"""
+                INSERT INTO devices(deviceId, timestamp)
+                VALUES({input_dict["id"]}, {timestamp});
+                """
+                self._execute_query(query)
+
+            elif type == "user":
+                query = f"""
+                INSERT INTO users(userId, name, surname)
+                VALUES({input_dict["id"]}, {input_dict["info"]["name"]}, {input_dict["info"]["surname"]});
+                """
+                self._execute_query(query)
+
+            elif type == "service":
+                query = f"""
+                INSERT INTO services(serviceId, description, timestamp)
+                VALUES({input_dict["id"]}, {input_dict["info"]["description"]}, {timestamp})
+                """
+                self._execute_query(query)
+
+            else:
+                cherrypy.HTTPError(400, f"Unknown item type: {type}")
+
+        except KeyError as exc:
+            cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
+        except Exception as exc:
+            cherrypy.HTTPError(400, f"An exception occurred: {exc}")
 
 
     def PUT(self, *uri, **params):      # update
         pass
 
 
-    def DELETE(self, *uti, **params):   # delete
+    def DELETE(self, *uri, **params):   # delete
         pass
 
 
