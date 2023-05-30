@@ -1,7 +1,7 @@
 import sqlite3
 
 
-DB_NAME = "/SW_lab02/ex01/db_catalog.db"
+DB_NAME = "db_catalog.db"
 
 
 def create_connection(db_file):
@@ -90,7 +90,7 @@ def main():
             serviceId VARCHAR(32),
             end_point VARCHAR(200),
             type CHAR(4) NOT NULL,
-            PRIMARY KEY(deviceId, end_point),
+            PRIMARY KEY(serviceId, end_point),
             FOREIGN KEY(serviceId) REFERENCES services(serviceId) ON DELETE CASCADE ON UPDATE CASCADE 
         );
         """
