@@ -39,59 +39,59 @@ def main():
         "DROP TABLE IF EXISTS service_end_points;",
         """
         CREATE TABLE devices (
-            deviceId VARCHAR(32),
+            device_id VARCHAR(32),
             timestamp INTEGER NOT NULL,
-            PRIMARY KEY(deviceId)
+            PRIMARY KEY(device_id)
         );
         """,
         """
         CREATE TABLE device_end_points (
-            deviceId VARCHAR(32),
+            device_id VARCHAR(32),
             end_point VARCHAR(200),
             type CHAR(4) NOT NULL,
-            PRIMARY KEY(deviceId, end_point),
-            FOREIGN KEY(deviceId) REFERENCES devices(deviceId) ON DELETE CASCADE ON UPDATE CASCADE 
+            PRIMARY KEY(device_id, end_point),
+            FOREIGN KEY(device_id) REFERENCES devices(device_id) ON DELETE CASCADE ON UPDATE CASCADE 
         );
         """,
         """
         CREATE TABLE device_resources (
-            deviceId VARCHAR(32),
+            device_id VARCHAR(32),
             resource VARCHAR(100),
-            PRIMARY KEY(deviceId, resource),
-            FOREIGN KEY(deviceId) REFERENCES devices(deviceId) ON DELETE CASCADE ON UPDATE CASCADE 
+            PRIMARY KEY(device_id, resource),
+            FOREIGN KEY(device_id) REFERENCES devices(device_id) ON DELETE CASCADE ON UPDATE CASCADE 
         );
         """,
         """
         CREATE TABLE users (
-            userId VARCHAR(32),
+            user_id VARCHAR(32),
             name VARCHAR(50) NOT NULL,
             surname VARCHAR(50) NOT NULL,
-            PRIMARY KEY(userId)
+            PRIMARY KEY(user_id)
         );
         """,
         """
         CREATE TABLE user_emails (
-            userId VARCHAR(32),
+            user_id VARCHAR(32),
             email VARCHAR(100),
-            PRIMARY KEY(userId, email),
-            FOREIGN KEY(userId) REFERENCES users(userId) ON DELETE CASCADE ON UPDATE CASCADE 
+            PRIMARY KEY(user_id, email),
+            FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE ON UPDATE CASCADE 
         );
         """,
         """
         CREATE TABLE services (
-            serviceId VARCHAR(32),
+            service_id VARCHAR(32),
             description VARCHAR(200) NOT NULL,
             timestamp INTEGER NOT NULL,
-            PRIMARY KEY(serviceId)
+            PRIMARY KEY(service_id)
         );
         """,
         """
         CREATE TABLE service_end_points (
-            serviceId VARCHAR(32),
+            service_id VARCHAR(32),
             end_point VARCHAR(200),
             type CHAR(4) NOT NULL,
-            PRIMARY KEY(serviceId, end_point),
-            FOREIGN KEY(serviceId) REFERENCES services(serviceId) ON DELETE CASCADE ON UPDATE CASCADE 
+            PRIMARY KEY(service_id, end_point),
+            FOREIGN KEY(service_id) REFERENCES services(service_id) ON DELETE CASCADE ON UPDATE CASCADE 
         );
         """
     ]

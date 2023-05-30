@@ -15,8 +15,8 @@ class Catalog():
 
 
     def __init__(self):
-        self._db_name = DB_NAME
-        self._max_timestamp = 120
+        self._max_timestamp = 120 * 60
+        self._delay_check_timestamp = 60 * 60
 
         self._loop()
 
@@ -26,7 +26,7 @@ class Catalog():
             
             # TODO: check if timestamps are too old and delete them
             
-            time.sleep(60)
+            time.sleep(self._delay_check_timestamp)
 
 
     def GET(self, *uri, **params):      # retrieve
@@ -60,21 +60,21 @@ class Catalog():
             # Add the item in main tables and referenced ones
             if type == "device":
                 query = f"""
-                INSERT INTO devices(deviceId, timestamp)
+                INSERT INTO devices(device_id, timestamp)
                 VALUES({input_dict["id"]}, {timestamp});
                 """
                 self._execute_query(query)
 
             elif type == "user":
                 query = f"""
-                INSERT INTO users(userId, name, surname)
+                INSERT INTO users(user_id, name, surname)
                 VALUES({input_dict["id"]}, {input_dict["info"]["name"]}, {input_dict["info"]["surname"]});
                 """
                 self._execute_query(query)
 
             elif type == "service":
                 query = f"""
-                INSERT INTO services(serviceId, description, timestamp)
+                INSERT INTO services(service_id, description, timestamp)
                 VALUES({input_dict["id"]}, {input_dict["info"]["description"]}, {timestamp})
                 """
                 self._execute_query(query)
@@ -101,7 +101,7 @@ class Catalog():
         cursor = None
 
         try:
-            connection = sqlite3.connect(self._db_name)
+            connection = sqlite3.connect(DB_NAME)
         except sqlite3.Error as err:
             print(err)
             cherrypy.HTTPError(500, "Error in connection to the database")
