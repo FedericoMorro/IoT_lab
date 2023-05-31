@@ -129,6 +129,8 @@ class Catalog():
             raise cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
         except Exception as exc:
             raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
+        
+        return "New item correctly stored"
 
 
     def PUT(self, *uri, **params):      # update
@@ -171,6 +173,8 @@ class Catalog():
             raise cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
         except Exception as exc:
             raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
+        
+        return "Timestamp refresh correctly executed"
 
 
     def DELETE(self, *uri, **params):   # delete
@@ -199,6 +203,8 @@ class Catalog():
 
         except Exception as exc:
             raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
+        
+        return "Item correctly deleted"
             
 
 
