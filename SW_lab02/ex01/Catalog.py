@@ -36,8 +36,8 @@ class Catalog():
     def POST(self, *uri, **params):     # create
         
         # Check path correctness
-        if not (len(uri) == 1 and uri[0] == "register"):
-            cherrypy.HTTPError(404, "Only POST on \"register\" is implemented")
+        if not (len(uri) == 2 and uri[0] in ["devices", "users", "services"] and uri[1] == "subscription"):
+            cherrypy.HTTPError(404, "POST available on \"type/subscription\" (type = \"devices\", \"users\" or \"services\")")
         
         # Get payload and convert it to JSON
         try:
@@ -54,7 +54,7 @@ class Catalog():
 
         # Add the new item to the database
         try:
-            type = input_dict["type"]
+            type = uri[0]
             timestamp = time.time()
             
             # Add the item in main tables and referenced ones
@@ -62,7 +62,7 @@ class Catalog():
                 self._insert_device(
                     device_id= input_dict["id"],
                     timestamp= timestamp,
-                    end_points_list= input_dict["end_points"],
+                    end_points_dict= input_dict["end_points"],
                     resources_list= input_dict["info"]["resources"]
                 )
 
@@ -78,7 +78,7 @@ class Catalog():
                 self._insert_service(
                     service_id= input_dict["id"],
                     timestamp= timestamp,
-                    end_points_list= input_dict["end_points"],
+                    end_points_dict= input_dict["end_points"],
                     description= input_dict["info"]["description"] 
                 )
 
@@ -97,6 +97,7 @@ class Catalog():
 
     def DELETE(self, *uri, **params):   # delete
         pass
+
 
 
     def _execute_query(self, query, is_select = False):
@@ -130,7 +131,8 @@ class Catalog():
         return output
             
 
-    def _insert_device(self, device_id, timestamp, end_points_list, resources_list):
+
+    def _insert_device(self, device_id, timestamp, end_points_dict, resources_list):
         query = f"""
                 INSERT INTO devices(device_id, timestamp)
                 VALUES({device_id}, {timestamp});
@@ -138,12 +140,13 @@ class Catalog():
         self._execute_query(query)
 
         try:
-            for end_point in end_points_list:
-                query = f"""
-                        INSERT INTO device_end_points(service_id, end_point, type)
-                        VALUES({device_id}, {end_point["value"]}, {end_point["type"]});
-                        """
-                self._execute_query(query)
+            for type in end_points_dict:
+                for end_point in end_points_dict[type]:
+                    query = f"""
+                            INSERT INTO device_end_points(device_id, end_point, type)
+                            VALUES({device_id}, {end_point["value"]}, {type});
+                            """
+                    self._execute_query(query)
         
         except KeyError as exc:
             cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
@@ -185,7 +188,7 @@ class Catalog():
             cherrypy.HTTPError(500, f"An exception occurred: {exc}")
 
 
-    def _insert_service(self, service_id, timestamp, end_points_list, description):
+    def _insert_service(self, service_id, timestamp, end_points_dict, description):
         query = f"""
                 INSERT INTO services(service_id, description, timestamp)
                 VALUES({service_id}, {description}, {timestamp});
@@ -193,17 +196,19 @@ class Catalog():
         self._execute_query(query)
 
         try:
-            for end_point in end_points_list:
-                query = f"""
-                        INSERT INTO service_end_points(service_id, end_point, type)
-                        VALUES({service_id}, {end_point["value"]}, {end_point["type"]});
-                        """
-                self._execute_query(query)
+            for type in end_points_dict:
+                for end_point in end_points_dict[type]:
+                    query = f"""
+                            INSERT INTO service_end_points(service_id, end_point, type)
+                            VALUES({service_id}, {end_point["value"]}, {type});
+                            """
+                    self._execute_query(query)
         
         except KeyError as exc:
             cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
         except Exception as exc:
             cherrypy.HTTPError(500, f"An exception occurred: {exc}")
+
 
 
 
