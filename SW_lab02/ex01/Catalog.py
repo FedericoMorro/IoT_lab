@@ -18,10 +18,8 @@ class Catalog():
         self._max_timestamp = 120 * 60
         self._delay_check_timestamp = 60 * 60
 
-        self._loop()
 
-
-    def _loop(self):
+    def loop(self):
         while True:
             
             # TODO: check if timestamps are too old and delete them
@@ -30,7 +28,12 @@ class Catalog():
 
 
     def GET(self, *uri, **params):      # retrieve
-        pass
+        
+        # Check path correctness
+        if not (1 <= len(uri) <= 2 and uri[0] in ["devices", "users", "services"]):
+            cherrypy.HTTPError(404, "GET available on \"type\" or \"type/item_id\" (type = \"devices\", \"users\" or \"services\")")
+
+        
 
 
     def POST(self, *uri, **params):     # create
@@ -54,36 +57,32 @@ class Catalog():
 
         # Add the new item to the database
         try:
-            type = uri[0]
             timestamp = time.time()
             
             # Add the item in main tables and referenced ones
-            if type == "devices":
+            if uri[0] == "devices":
                 self.insert_device(
                     device_id= input_dict["id"],
                     timestamp= timestamp,
                     end_points_dict= input_dict["end_points"],
                     resources_list= input_dict["info"]["resources"]
                 )
-
-            elif type == "users":
+            elif uri[0] == "users":
                 self.insert_user(
                     user_id= input_dict["id"],
                     name= input_dict["info"]["name"],
                     surname= input_dict["info"]["surname"],
                     emails_list= input_dict["info"]["emails"]
                 )
-
-            elif type == "services":
+            elif uri[0] == "services":
                 self.insert_service(
                     service_id= input_dict["id"],
                     timestamp= timestamp,
                     end_points_dict= input_dict["end_points"],
                     description= input_dict["info"]["description"] 
                 )
-
             else:
-                cherrypy.HTTPError(400, f"Unknown item type: {type}")
+                cherrypy.HTTPError(400, f"Unknown item type: {uri[0]}")
 
         except KeyError as exc:
             cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
@@ -95,7 +94,7 @@ class Catalog():
         
         # Check path correctness
         if not (len(uri) == 2 and uri[0] in ["devices", "services"] and uri[1] == "refresh"):
-            cherrypy.HTTPError(404, "POST available on \"type/refresh\" (type = \"devices\" or \"services\")")
+            cherrypy.HTTPError(404, "PUT available on \"type/refresh\" (type = \"devices\" or \"services\")")
         
         # Get payload and convert it to JSON
         try:
@@ -110,28 +109,24 @@ class Catalog():
         except Exception as exc:
             cherrypy.HTTPError(500, f"An exception occurred: {exc}")
 
-        # Add the new item to the database
+        # Update the timestamp in the main table
         try:
-            type = uri[0]
             timestamp = time.time()
             
-            # Add the item in main tables and referenced ones
-            if type == "devices":
-                self.update(
+            if uri[0] == "devices":
+                self.update_timestamp(
                     type= "device",
                     item_id= input_dict["id"],
                     timestamp= timestamp
                 )
-
-            elif type == "services":
-                self.update(
+            elif uri[0] == "services":
+                self.update_timestamp(
                     type= "service",
                     item_id= input_dict["id"],
                     timestamp= timestamp
                 )
-
             else:
-                cherrypy.HTTPError(400, f"Unknown item type: {type}")
+                cherrypy.HTTPError(400, f"Unknown item type: {uri[0]}")
 
         except KeyError as exc:
             cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
@@ -140,7 +135,35 @@ class Catalog():
 
 
     def DELETE(self, *uri, **params):   # delete
-        pass
+        
+        # Check path correctness
+        if not (len(uri) == 2 and uri[0] in ["devices", "users", "services"]):
+            cherrypy.HTTPError(404, "DELETE available on \"type/item_id\" (type = \"devices\", \"users\" or \"services\")")
+
+        # Delte the item from the database
+        try:
+            if uri[0] == "devices":
+                self.delete_item(
+                    type= "device",
+                    item_id= uri[1]
+                )
+            elif uri[0] == "users":
+                self.delete_item(
+                    type= "user",
+                    item_id= uri[1]
+                )
+            elif uri[0] == "services":
+                self.delete_item(
+                    type= "service",
+                    item_id= uri[1]
+                )
+            else:
+                cherrypy.HTTPError(400, f"Unknown item type: {uri[0]}")
+
+        except KeyError as exc:
+            cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
+        except Exception as exc:
+            cherrypy.HTTPError(500, f"An exception occurred: {exc}")
 
 
 
@@ -183,7 +206,7 @@ class Catalog():
 
         query = f"""
                 INSERT INTO devices(device_id, timestamp)
-                VALUES({device_id}, {timestamp});
+                VALUES('{device_id}', {timestamp});
                 """
         self.execute_query(query)
 
@@ -197,7 +220,7 @@ class Catalog():
             for resource in resources_list:
                 query = f"""
                         INSERT INTO device_resources(device_id, resource)
-                        VALUES({device_id}, {resource["name"]});
+                        VALUES('{device_id}', '{resource["name"]}');
                         """
                 self.execute_query(query)
         
@@ -214,7 +237,7 @@ class Catalog():
 
         query = f"""
                 INSERT INTO users(user_id, name, surname)
-                VALUES({user_id}, {name}, {surname});
+                VALUES('{user_id}', '{name}', '{surname}');
                 """
         self.execute_query(query)
 
@@ -222,7 +245,7 @@ class Catalog():
             for email in emails_list:
                 query = f"""
                         INSERT INTO user_emails(user_id, email)
-                        VALUES({user_id}, {email["value"]});
+                        VALUES('{user_id}', '{email["value"]}');
                         """
                 self.execute_query(query)
         
@@ -239,7 +262,7 @@ class Catalog():
 
         query = f"""
                 INSERT INTO services(service_id, description, timestamp)
-                VALUES({service_id}, {description}, {timestamp});
+                VALUES(''{service_id}', '{description}', {timestamp});
                 """
         self.execute_query(query)
 
@@ -256,7 +279,7 @@ class Catalog():
                 for end_point in end_points_dict[protocol]:
                     query = f"""
                             INSERT INTO {type}_end_points({type}_id, end_point, type)
-                            VALUES({item_id}, {end_point["value"]}, {protocol});
+                            VALUES('{item_id}', '{end_point["value"]}', '{protocol}');
                             """
                     self.execute_query(query)
         
@@ -266,14 +289,25 @@ class Catalog():
             cherrypy.HTTPError(500, f"An exception occurred: {exc}")
 
 
-    def update(self, type, item_id, timestamp):
+    def update_timestamp(self, type, item_id, timestamp):
 
         if self.is_present(type, item_id):
-            cherrypy.HTTPError(400, "The device is not present in the database, first subscribe it")
+            cherrypy.HTTPError(400, f"The {type} is not present in the database, first subscribe it")
 
         query = f"""
                 UPDATE {type}s
                 SET timestamp = {timestamp}
+                WHERE {type}_id = '{item_id}';"""
+        self.execute_query(query)
+
+
+    def delete_item(self, type, item_id):
+
+        if not self.is_present(type, item_id):
+            cherrypy.HTTPError(400, f"The {type} is not present in the database")
+
+        query = f"""
+                DELETE FROM {type}s
                 WHERE {type}_id = '{item_id}';"""
         self.execute_query(query)
 
