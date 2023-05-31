@@ -50,7 +50,7 @@ class Catalog():
         except ValueError as exc:
             cherrypy.HTTPError(400, f"Error in JSON to dictionary conversion: {exc}")
         except Exception as exc:
-            cherrypy.HTTPError(400, f"An exception occurred: {exc}")
+            cherrypy.HTTPError(500, f"An exception occurred: {exc}")
 
         # Add the new item to the database
         try:
@@ -85,7 +85,7 @@ class Catalog():
         except KeyError as exc:
             cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
         except Exception as exc:
-            cherrypy.HTTPError(400, f"An exception occurred: {exc}")
+            cherrypy.HTTPError(500, f"An exception occurred: {exc}")
 
 
     def PUT(self, *uri, **params):      # update
@@ -123,6 +123,9 @@ class Catalog():
         connection.close()
 
         return output
+    
+
+    
 
 
 
