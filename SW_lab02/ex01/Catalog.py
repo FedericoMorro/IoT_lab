@@ -19,11 +19,32 @@ class Catalog():
         self._max_timestamp = 120 * 60
         self._delay_check_timestamp_minutes = 60
 
-        self._mqtt_broker_hostname = "iot.eclipse.org"
-        self._mqtt_broker_port = 1883
+        self._client_id = "IoT_lab_group3_Catalog"
+        self._broker_hostname = "iot.eclipse.org"
+        self._broker_port = 1883
+        self._base_topic = "/IoT_lab/group3/catalog"
+
+        self._mqtt_client = PahoMQTT.Client(self._client_id, clean_session=False)
+        self._mqtt_client.on_message = self.callback_on_MQTT_message
+
+        self._mqtt_client.connect(self._broker_hostname, self._broker_port)
+
+        self._subscribed_topics = []
+        for item in ["devices", "services", "users"]:
+            for operation in ["subscription", "refresh"]:
+                self._subscribed_topics.append(f"{self._base_topic}/{item}/{operation}")
+        self._mqtt_client.subscribe(self._subscribed_topics)
 
         self._thread = threading.Thread(target=self.callback_delete_old)
         self._thread.start()
+
+
+    def __del__(self):
+        self._mqtt_client.unsubscribe(self._subscribed_topics)
+        self._mqtt_client.loop_stop()
+        self._mqtt_client.disconnect()
+
+        self._thread.join()
 
 
     def callback_delete_old(self):
@@ -41,6 +62,21 @@ class Catalog():
                     self.delete_item(type, item_id)
         
         time.sleep(self._delay_check_timestamp_minutes)
+
+
+    def callback_on_MQTT_message(self, paho_mqtt, userdata, msg):
+        # Get the payload and convert in to dictionary
+        try:
+            input_str = msg.payload.decode("utf-8")     # to convert from bytes to text, otherwise payload is like "b'text"
+            input_dict = json.loads(input_str)
+        except ValueError as exc:
+            raise cherrypy.HTTPError(400, f"Error in input JSON to dictionary conversion: {exc}")
+        except Exception as exc:
+            raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
+        
+        # TODO: check topic
+
+        # TODO: manage insertion or timestamp update f() of topic
 
 
     def GET(self, *uri, **params):      # retrieve
@@ -311,7 +347,8 @@ class Catalog():
         query = f"""
                 SELECT resource
                 FROM device_resources
-                WHERE device_id = '{device_id}';"""
+                WHERE device_id = '{device_id}';
+                """
         result = self.execute_query(query, is_select=True)
 
         for row in result:
@@ -337,7 +374,8 @@ class Catalog():
         query = f"""
                 SELECT name, surname
                 FROM users
-                WHERE user_id = '{user_id}';"""
+                WHERE user_id = '{user_id}';
+                """
         result = self.execute_query(query, is_select=True)
 
         output_dict["info"]["name"] = result[0]
@@ -346,7 +384,8 @@ class Catalog():
         query = f"""
                 SELECT email
                 FROM user_emails
-                WHERE user_id = '{user_id}';"""
+                WHERE user_id = '{user_id}';
+                """
         result = self.execute_query(query, is_select=True)
 
         for row in result:
@@ -372,7 +411,8 @@ class Catalog():
         query = f"""
                 SELECT description
                 FROM services
-                WHERE service_id = '{service_id}';"""
+                WHERE service_id = '{service_id}';
+                """
         result = self.execute_query(query, is_select=True)
 
         output_dict["info"]["description"] = result[0]
@@ -385,7 +425,8 @@ class Catalog():
         query = f"""
                 SELECT end_point, protocol
                 FROM {type}_end_points
-                WHERE {type}_id = '{item_id}';"""
+                WHERE {type}_id = '{item_id}';
+                """
         result = self.execute_query(query, is_select=True)
 
         for row in result:
@@ -408,7 +449,8 @@ class Catalog():
         query = f"""
                 UPDATE {type}s
                 SET timestamp = {timestamp}
-                WHERE {type}_id = '{item_id}';"""
+                WHERE {type}_id = '{item_id}';
+                """
         self.execute_query(query)
 
 
@@ -420,7 +462,8 @@ class Catalog():
         query = f"""
                 SELECT timestamp
                 FROM {type}s
-                WHERE {type}_id = '{item_id}';"""
+                WHERE {type}_id = '{item_id}';
+                """
         result = self.execute_query(query, is_select=True)
 
         return result[0]
@@ -441,14 +484,16 @@ class Catalog():
 
         query = f"""
                 DELETE FROM {type}s
-                WHERE {type}_id = '{item_id}';"""
+                WHERE {type}_id = '{item_id}';
+                """
         self.execute_query(query)
 
 
     def delete_item_referenced_tables(self, type, item_id, table):
         query = f"""
                 DELETE FROM {table}
-                WHERE {type}_id = '{item_id}';"""
+                WHERE {type}_id = '{item_id}';
+                """
         self.execute_query(query)
 
 
