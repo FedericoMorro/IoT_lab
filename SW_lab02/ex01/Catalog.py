@@ -374,6 +374,20 @@ class Catalog():
         self.execute_query(query)
 
 
+    def get_timestamp(self, type, item_id):
+
+        if not self.is_present(type, item_id):
+            raise cherrypy.HTTPError(500, f"The {type}:{item_id} is not present in the catalog")
+        
+        query = f"""
+                SELECT timestamp
+                FROM {type}s
+                WHERE {type}_id = '{item_id}';"""
+        result = self.execute_query(query, is_select=True)
+
+        return result[0]
+
+
     def delete_item(self, type, item_id):
 
         if not self.is_present(type, item_id):
