@@ -21,23 +21,24 @@ def main():
             print("Input not valid. Use 'd' for devices, 'u' for users, 'm' for MQTT Broker information, 'x' for exit.")
             continue
 
-        sel = input("Would you like to retreive information about a specific ID? (y / n): ")
+        if sel != 'm':
+            sel = input("Would you like to retreive information about a specific ID? (y / n): ")
 
         id = ""
 
         if sel == 'y':
             id = input("Insert the ID: ")
-        elif sel != 'n':
+        elif sel != 'n' and sel != 'm':
             print("Input not valid. Use 'y' to insert ID, 'n' to not to. Continuing as 'n' was pressed...")
 
-        get_url = f"{ip_addr}:{port}/{type}/{id}"
+        get_url = f"http://{ip_addr}:{port}/{type}/{id}"
 
         print(f"[DEBUG] - Sending request to {get_url}")
 
         r = requests.get(get_url)
 
         print(f"Request status code: {r.status_code}")
-        print(f"Request reply:\n{r.text()}")
+        print(f"Request reply: {r.text}")
 
 
 # GET:
