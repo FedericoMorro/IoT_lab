@@ -60,7 +60,7 @@ class Catalog():
 
         # Add the new item to the database
         try:
-            timestamp = time.time()
+            timestamp = int(time.time())
             
             # Add the item in main tables and referenced ones
             if uri[0] == "devices":
@@ -112,7 +112,7 @@ class Catalog():
 
         # Update the timestamp in the main table
         try:
-            timestamp = time.time()
+            timestamp = int(time.time())
             
             if uri[0] == "devices":
                 self.update_timestamp(
@@ -313,7 +313,7 @@ class Catalog():
 
     def update_timestamp(self, type, item_id, timestamp):
 
-        if self.is_present(type, item_id):
+        if not self.is_present(type, item_id):
             raise cherrypy.HTTPError(400, f"The {type} is not present in the catalog, first subscribe it")
 
         query = f"""
@@ -327,9 +327,24 @@ class Catalog():
 
         if not self.is_present(type, item_id):
             raise cherrypy.HTTPError(400, f"The {type} is not present in the database")
+        
+        if type == "device":
+            self.delete_item_referenced_tables(type, item_id, "device_end_points")
+            self.delete_item_referenced_tables(type, item_id, "device_resources")
+        elif type == "user":
+            self.delete_item_referenced_tables(type, item_id, "user_emails")
+        elif type == "service":
+            self.delete_item_referenced_tables(type, item_id, "service_end_points")
 
         query = f"""
                 DELETE FROM {type}s
+                WHERE {type}_id = '{item_id}';"""
+        self.execute_query(query)
+
+
+    def delete_item_referenced_tables(self, type, item_id, table):
+        query = f"""
+                DELETE FROM {table}
                 WHERE {type}_id = '{item_id}';"""
         self.execute_query(query)
 
