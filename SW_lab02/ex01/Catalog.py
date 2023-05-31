@@ -4,7 +4,7 @@ import sqlite3
 import json
 import time
 
-DB_NAME = "/SW_lab02/ex01/db_catalog.db"
+DB_NAME = "db_catalog.db"
 DB_TABLES = ["devices", "device_end_points", "device_resources",
              "users", "user_emails",
              "services", "service_end_points"]
@@ -31,29 +31,32 @@ class Catalog():
         
         # Check path correctness
         if not (1 <= len(uri) <= 2 and uri[0] in ["devices", "users", "services"]):
-            cherrypy.HTTPError(404, "GET available on \"type\" or \"type/item_id\" (type = \"devices\", \"users\" or \"services\")")
+            raise cherrypy.HTTPError(404, "GET available on \"type\" or \"type/item_id\" (type = \"devices\", \"users\" or \"services\")")
 
-        
+        if len(uri) == 1:
+            pass
+        elif len(uri) == 2:
+            pass
 
 
     def POST(self, *uri, **params):     # create
         
         # Check path correctness
         if not (len(uri) == 2 and uri[0] in ["devices", "users", "services"] and uri[1] == "subscription"):
-            cherrypy.HTTPError(404, "POST available on \"type/subscription\" (type = \"devices\", \"users\" or \"services\")")
+            raise cherrypy.HTTPError(404, "POST available on \"type/subscription\" (type = \"devices\", \"users\" or \"services\")")
         
         # Get payload and convert it to JSON
         try:
             input_str = cherrypy.request.body.read()
             if len(input_str) == 0:
-                cherrypy.HTTPError(400, "Empty POST")
+                raise cherrypy.HTTPError(400, "Empty POST")
         
             input_dict = json.loads(input_str)
 
         except ValueError as exc:
-            cherrypy.HTTPError(400, f"Error in JSON to dictionary conversion: {exc}")
+            raise cherrypy.HTTPError(400, f"Error in JSON to dictionary conversion: {exc}")
         except Exception as exc:
-            cherrypy.HTTPError(500, f"An exception occurred: {exc}")
+            raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
 
         # Add the new item to the database
         try:
@@ -81,33 +84,31 @@ class Catalog():
                     end_points_dict= input_dict["end_points"],
                     description= input_dict["info"]["description"] 
                 )
-            else:
-                cherrypy.HTTPError(404, f"Unknown item type: {uri[0]}")
 
         except KeyError as exc:
-            cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
+            raise cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
         except Exception as exc:
-            cherrypy.HTTPError(500, f"An exception occurred: {exc}")
+            raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
 
 
     def PUT(self, *uri, **params):      # update
         
         # Check path correctness
         if not (len(uri) == 2 and uri[0] in ["devices", "services"] and uri[1] == "refresh"):
-            cherrypy.HTTPError(404, "PUT available on \"type/refresh\" (type = \"devices\" or \"services\")")
+            raise cherrypy.HTTPError(404, "PUT available on \"type/refresh\" (type = \"devices\" or \"services\")")
         
         # Get payload and convert it to JSON
         try:
             input_str = cherrypy.request.body.read()
             if len(input_str) == 0:
-                cherrypy.HTTPError(400, "Empty POST")
+                raise cherrypy.HTTPError(400, "Empty POST")
         
             input_dict = json.loads(input_str)
 
         except ValueError as exc:
-            cherrypy.HTTPError(400, f"Error in JSON to dictionary conversion: {exc}")
+            raise cherrypy.HTTPError(400, f"Error in JSON to dictionary conversion: {exc}")
         except Exception as exc:
-            cherrypy.HTTPError(500, f"An exception occurred: {exc}")
+            raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
 
         # Update the timestamp in the main table
         try:
@@ -125,20 +126,18 @@ class Catalog():
                     item_id= input_dict["id"],
                     timestamp= timestamp
                 )
-            else:
-                cherrypy.HTTPError(404, f"Unknown item type: {uri[0]}")
 
         except KeyError as exc:
-            cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
+            raise cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
         except Exception as exc:
-            cherrypy.HTTPError(500, f"An exception occurred: {exc}")
+            raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
 
 
     def DELETE(self, *uri, **params):   # delete
         
         # Check path correctness
         if not (len(uri) == 2 and uri[0] in ["devices", "users", "services"]):
-            cherrypy.HTTPError(404, "DELETE available on \"type/item_id\" (type = \"devices\", \"users\" or \"services\")")
+            raise cherrypy.HTTPError(404, "DELETE available on \"type/item_id\" (type = \"devices\", \"users\" or \"services\")")
 
         # Delte the item from the database
         try:
@@ -157,11 +156,9 @@ class Catalog():
                     type= "service",
                     item_id= uri[1]
                 )
-            else:
-                cherrypy.HTTPError(404, f"Unknown item type: {uri[0]}")
 
         except Exception as exc:
-            cherrypy.HTTPError(500, f"An exception occurred: {exc}")
+            raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
 
 
 
@@ -173,7 +170,7 @@ class Catalog():
             connection = sqlite3.connect(DB_NAME)
         except sqlite3.Error as err:
             print(err)
-            cherrypy.HTTPError(500, "Error in connection to the database")
+            raise cherrypy.HTTPError(500, "Error in connection to the database")
 
         try:
             cursor = connection.cursor()
@@ -181,14 +178,14 @@ class Catalog():
             connection.commit()
         except sqlite3.Error as err:
             print(err)
-            cherrypy.HTTPError(500, f"Error in querying the database\nQuery:\n{query}")
+            raise cherrypy.HTTPError(500, f"Error in querying the database\nQuery:\n{query}")
 
         if is_select:
             output = cursor.fetchall()
         else:
-            output = cursor.rowcount()
+            output = cursor.rowcount
             if output <= 0:
-                cherrypy.HTTPError(500, f"Error in database transaction\nQuery:\n{query}")
+                raise cherrypy.HTTPError(500, f"Error in database transaction\nQuery:\n{query}")
 
         cursor.close()
         connection.close()
@@ -200,7 +197,7 @@ class Catalog():
     def insert_device(self, device_id, timestamp, end_points_dict, resources_list):
 
         if self.is_present("device", device_id):
-            cherrypy.HTTPError(400, "Device already present in the catalog")
+            raise cherrypy.HTTPError(400, "Device already present in the catalog")
 
         query = f"""
                 INSERT INTO devices(device_id, timestamp)
@@ -223,15 +220,15 @@ class Catalog():
                 self.execute_query(query)
         
         except KeyError as exc:
-            cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
+            raise cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
         except Exception as exc:
-            cherrypy.HTTPError(500, f"An exception occurred: {exc}")
+            raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
 
 
     def insert_user(self, user_id, name, surname, emails_list):
 
         if self.is_present("user", user_id):
-            cherrypy.HTTPError(400, "User already present in the catalog")
+            raise cherrypy.HTTPError(400, "User already present in the catalog")
 
         query = f"""
                 INSERT INTO users(user_id, name, surname)
@@ -248,15 +245,15 @@ class Catalog():
                 self.execute_query(query)
         
         except KeyError as exc:
-            cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
+            raise cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
         except Exception as exc:
-            cherrypy.HTTPError(500, f"An exception occurred: {exc}")
+            raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
 
 
     def insert_service(self, service_id, timestamp, end_points_dict, description):
 
         if self.is_present("service", service_id):
-            cherrypy.HTTPError(400, "Service already present in the catalog")
+            raise cherrypy.HTTPError(400, "Service already present in the catalog")
 
         query = f"""
                 INSERT INTO services(service_id, description, timestamp)
@@ -282,15 +279,42 @@ class Catalog():
                     self.execute_query(query)
         
         except KeyError as exc:
-            cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
+            raise cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
         except Exception as exc:
-            cherrypy.HTTPError(500, f"An exception occurred: {exc}")
+            raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
+
+
+    def get_device(self, device_id):
+        
+        if not self.is_present("device", device_id):
+            raise cherrypy.HTTPError(400, "The device is not present in the catalog")
+
+        output_dict = {}
+        output_dict["id"] = device_id
+
+        query = f"""
+                SELECT end_point, type
+                FROM device_end_points
+                WHERE device_id = '{device_id}';"""
+        result = self.execute_query(query, is_select=True)
+
+
+    def get_user(self, user_id):
+        
+        if not self.is_present("user", user_id):
+            raise cherrypy.HTTPError(400, "The user is not present in the catalog")
+
+
+    def get_service(self, service_id):
+        
+        if not self.is_present("service", service_id):
+            raise cherrypy.HTTPError(400, "The service is not present in the catalog")
 
 
     def update_timestamp(self, type, item_id, timestamp):
 
         if self.is_present(type, item_id):
-            cherrypy.HTTPError(400, f"The {type} is not present in the database, first subscribe it")
+            raise cherrypy.HTTPError(400, f"The {type} is not present in the catalog, first subscribe it")
 
         query = f"""
                 UPDATE {type}s
@@ -302,7 +326,7 @@ class Catalog():
     def delete_item(self, type, item_id):
 
         if not self.is_present(type, item_id):
-            cherrypy.HTTPError(400, f"The {type} is not present in the database")
+            raise cherrypy.HTTPError(400, f"The {type} is not present in the database")
 
         query = f"""
                 DELETE FROM {type}s
