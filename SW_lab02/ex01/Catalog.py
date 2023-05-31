@@ -41,10 +41,29 @@ class Catalog():
         if not (1 <= len(uri) <= 2 and uri[0] in ["devices", "users", "services"]):
             raise cherrypy.HTTPError(404, "GET available on \"type\" or \"type/item_id\" (type = \"devices\", \"users\" or \"services\")")
 
-        if len(uri) == 1:
-            pass
-        elif len(uri) == 2:
-            pass
+        if len(uri) == 2:
+            if uri[0] == "devices":
+                return self.get_device(uri[1])
+            elif uri[0] == "users":
+                return self.get_user(uri[1])
+            elif uri[0] == "services":
+                return self.get_service(uri[1])
+            
+        elif len(uri) == 1:
+            if uri[0] == "devices":
+                type = "device"
+            elif uri[0] == "users":
+                type = "user"
+            elif uri[0] == "services":
+                type = "service"
+
+        output_dict = []
+        items_list = self.get_all_items(type)
+
+        for item in items_list:
+            output_dict.append(self.get_item(type, item[0]))
+
+        return self.json_dict_to_str(output_dict)
 
 
     def POST(self, *uri, **params):     # create
@@ -425,6 +444,26 @@ class Catalog():
         if len(result) == 0:
             return False
         return True
+    
+
+    def get_all_items(self, type):
+        query = f"""
+                SELECT {type}_id
+                FROM {type}s;
+                """
+        result = self.execute_query(query, is_select=True)
+
+        return result
+    
+
+    def get_item(self, type, item_id):
+        if type == "device":
+            return self.get_device(item_id)
+        elif type == "user":
+            return self.get_user(item_id)
+        elif type == "service":
+            return self.get_service(item_id)
+
     
 
     def json_dict_to_str(self, json_dict):
