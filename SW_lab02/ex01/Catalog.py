@@ -3,6 +3,7 @@ import paho.mqtt.client as PahoMQTT
 import sqlite3
 import json
 import time
+import threading
 
 DB_NAME = "db_catalog.db"
 DB_TABLES = ["devices", "device_end_points", "device_resources",
@@ -16,18 +17,30 @@ class Catalog():
 
     def __init__(self):
         self._max_timestamp = 120 * 60
-        self._delay_check_timestamp = 60 * 60
+        self._delay_check_timestamp_minutes = 60
 
         self._mqtt_broker_hostname = "iot.eclipse.org"
         self._mqtt_broker_port = 1883
 
+        self._thread = threading.Thread(target=self.callback_delete_old)
+        self._thread.start()
 
-    def loop(self):
-        while True:
-            
-            # TODO: check if timestamps are too old and delete them
-            
-            time.sleep(self._delay_check_timestamp)
+
+    def callback_delete_old(self):
+
+        timestamp = int(time.time())
+        
+        for type in ["device", "service"]:
+            items_list = self.get_all_items(type)
+
+            for item in items_list:
+                item_id = item[0]
+
+                item_timestamp = self.get_timestamp(type, item_id)
+                if timestamp - item_timestamp > self._max_timestamp:
+                    self.delete_item(type, item_id)
+        
+        time.sleep(self._delay_check_timestamp_minutes)
 
 
     def GET(self, *uri, **params):      # retrieve
