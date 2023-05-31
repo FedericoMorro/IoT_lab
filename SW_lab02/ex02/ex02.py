@@ -7,16 +7,18 @@ def main():
     port = input("Insert the server port: ")
 
     while True:
-        sel = input("Insert the type (d / u) you are looking for, or use 'x' to exit: ")
+        sel = input("Insert the type (d / u / m) you are looking for, or use 'x' to exit: ")
 
         if sel == 'd':
             type = "devices"
         elif sel == 'u':
             type = "users"
+        elif sel == 'm':
+            type = "MQTTbroker"
         elif sel == 'x':
             break
         else:
-            print("Input not valid. Use 'd' for devices, 'u' for users, 'x' for exit.")
+            print("Input not valid. Use 'd' for devices, 'u' for users, 'm' for MQTT Broker information, 'x' for exit.")
             continue
 
         sel = input("Would you like to retreive information about a specific ID? (y / n): ")
@@ -31,7 +33,7 @@ def main():
         get_url = f"{ip_addr}:{port}/{type}/{id}"
 
         print(f"[DEBUG] - Sending request to {get_url}")
-        
+
         r = requests.get(get_url)
 
         print(f"Request status code: {r.status_code}")
