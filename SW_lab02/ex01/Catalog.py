@@ -82,7 +82,7 @@ class Catalog():
                     description= input_dict["info"]["description"] 
                 )
             else:
-                cherrypy.HTTPError(400, f"Unknown item type: {uri[0]}")
+                cherrypy.HTTPError(404, f"Unknown item type: {uri[0]}")
 
         except KeyError as exc:
             cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
@@ -126,7 +126,7 @@ class Catalog():
                     timestamp= timestamp
                 )
             else:
-                cherrypy.HTTPError(400, f"Unknown item type: {uri[0]}")
+                cherrypy.HTTPError(404, f"Unknown item type: {uri[0]}")
 
         except KeyError as exc:
             cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
@@ -158,10 +158,8 @@ class Catalog():
                     item_id= uri[1]
                 )
             else:
-                cherrypy.HTTPError(400, f"Unknown item type: {uri[0]}")
+                cherrypy.HTTPError(404, f"Unknown item type: {uri[0]}")
 
-        except KeyError as exc:
-            cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
         except Exception as exc:
             cherrypy.HTTPError(500, f"An exception occurred: {exc}")
 
