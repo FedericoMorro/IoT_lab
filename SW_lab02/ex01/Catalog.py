@@ -59,25 +59,28 @@ class Catalog():
             
             # Add the item in main tables and referenced ones
             if type == "device":
-                query = f"""
-                INSERT INTO devices(device_id, timestamp)
-                VALUES({input_dict["id"]}, {timestamp});
-                """
-                self._execute_query(query)
+                self._insert_device(
+                    device_id= input_dict["id"],
+                    timestamp= timestamp,
+                    end_points_list= input_dict["end_points"],
+                    resources_list= input_dict["info"]["resources"]
+                )
 
             elif type == "user":
-                query = f"""
-                INSERT INTO users(user_id, name, surname)
-                VALUES({input_dict["id"]}, {input_dict["info"]["name"]}, {input_dict["info"]["surname"]});
-                """
-                self._execute_query(query)
+                self._insert_user(
+                    user_id= input_dict["id"],
+                    name= input_dict["info"]["name"],
+                    surname= input_dict["info"]["surname"],
+                    emails_list= input_dict["info"]["emails"]
+                )
 
             elif type == "service":
-                query = f"""
-                INSERT INTO services(service_id, description, timestamp)
-                VALUES({input_dict["id"]}, {input_dict["info"]["description"]}, {timestamp})
-                """
-                self._execute_query(query)
+                self._insert_service(
+                    service_id= input_dict["id"],
+                    timestamp= timestamp,
+                    end_points_list= input_dict["end_points"],
+                    description= input_dict["info"]["description"] 
+                )
 
             else:
                 cherrypy.HTTPError(400, f"Unknown item type: {type}")
@@ -118,14 +121,89 @@ class Catalog():
             output = cursor.fetchall()
         else:
             output = cursor.rowcount()
+            if output <= 0:
+                cherrypy.HTTPError(500, f"Error in database transaction\nQuery:\n{query}")
 
         cursor.close()
         connection.close()
-
+        
         return output
-    
+            
 
-    
+    def _insert_device(self, device_id, timestamp, end_points_list, resources_list):
+        query = f"""
+                INSERT INTO devices(device_id, timestamp)
+                VALUES({device_id}, {timestamp});
+                """
+        self._execute_query(query)
+
+        try:
+            for end_point in end_points_list:
+                query = f"""
+                        INSERT INTO device_end_points(service_id, end_point, type)
+                        VALUES({device_id}, {end_point["value"]}, {end_point["type"]});
+                        """
+                self._execute_query(query)
+        
+        except KeyError as exc:
+            cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
+        except Exception as exc:
+            cherrypy.HTTPError(500, f"An exception occurred: {exc}")
+
+        try:
+            for resource in resources_list:
+                query = f"""
+                        INSERT INTO device_resources(device_id, resource)
+                        VALUES({device_id}, {resource["name"]});
+                        """
+                self._execute_query(query)
+        
+        except KeyError as exc:
+            cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
+        except Exception as exc:
+            cherrypy.HTTPError(500, f"An exception occurred: {exc}")
+
+
+    def _insert_user(self, user_id, name, surname, emails_list):
+        query = f"""
+                INSERT INTO users(user_id, name, surname)
+                VALUES({user_id}, {name}, {surname});
+                """
+        self._execute_query(query)
+
+        try:
+            for email in emails_list:
+                query = f"""
+                        INSERT INTO user_emails(user_id, email)
+                        VALUES({user_id}, {email["value"]});
+                        """
+                self._execute_query(query)
+        
+        except KeyError as exc:
+            cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
+        except Exception as exc:
+            cherrypy.HTTPError(500, f"An exception occurred: {exc}")
+
+
+    def _insert_service(self, service_id, timestamp, end_points_list, description):
+        query = f"""
+                INSERT INTO services(service_id, description, timestamp)
+                VALUES({service_id}, {description}, {timestamp});
+                """
+        self._execute_query(query)
+
+        try:
+            for end_point in end_points_list:
+                query = f"""
+                        INSERT INTO service_end_points(service_id, end_point, type)
+                        VALUES({service_id}, {end_point["value"]}, {end_point["type"]});
+                        """
+                self._execute_query(query)
+        
+        except KeyError as exc:
+            cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
+        except Exception as exc:
+            cherrypy.HTTPError(500, f"An exception occurred: {exc}")
 
 
 

@@ -28,7 +28,7 @@
         "name": "Mario",
         "surname": "Rossi",
         "emails": [
-            {"email": "mario.rossi@gmail.com"}
+            {"value": "mario.rossi@gmail.com"}
         ]
     }
 }
