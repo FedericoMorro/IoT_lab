@@ -31,9 +31,11 @@ def main():
         get_url = f"{ip_addr}:{port}/{type}/{id}"
 
         print(f"[DEBUG] - Sending request to {get_url}")
+        
         r = requests.get(get_url)
 
         print(f"Request status code: {r.status_code}")
+        print(f"Request reply:\n{r.text()}")
 
 
 # GET:
