@@ -96,7 +96,7 @@ class Catalog():
         pass
 
 
-    def _execute_query(self, query):
+    def _execute_query(self, query, is_select = False):
         connection = None
         cursor = None
 
@@ -109,11 +109,20 @@ class Catalog():
         try:
             cursor = connection.cursor()
             cursor.execute(query)
+            connection.commit()
         except sqlite3.Error as err:
             print(err)
             cherrypy.HTTPError(500, f"Error in querying the database\nQuery:\n{query}")
 
-        return cursor.fetchall()
+        if is_select:
+            output = cursor.fetchall()
+        else:
+            output = cursor.rowcount()
+
+        cursor.close()
+        connection.close()
+
+        return output
 
 
 
