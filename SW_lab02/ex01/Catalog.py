@@ -18,6 +18,9 @@ class Catalog():
         self._max_timestamp = 120 * 60
         self._delay_check_timestamp = 60 * 60
 
+        self._mqtt_broker_hostname = "iot.eclipse.org"
+        self._mqtt_broker_port = 1883
+
 
     def loop(self):
         while True:
@@ -28,6 +31,11 @@ class Catalog():
 
 
     def GET(self, *uri, **params):      # retrieve
+
+        # Give possibility to ask for MQTT broker
+        if (len(uri) == 1 and uri[0] == "MQTTbroker"):
+            output_dict = {"hostname": self._mqtt_broker_hostname, "port": self._mqtt_broker_port}
+            return self.json_dict_to_str(output_dict)
         
         # Check path correctness
         if not (1 <= len(uri) <= 2 and uri[0] in ["devices", "users", "services"]):
@@ -275,14 +283,7 @@ class Catalog():
                 output_dict["info"]["resources"] = []
             output_dict["info"]["resources"].append({"name": resource})
 
-        try:
-            output_str = json.loads(output_dict)
-        except ValueError as exc:
-            raise cherrypy.HTTPError(500, f"Error in dictionary to output JSON conversion: {exc}")
-        except Exception as exc:
-            raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
-        
-        return output_str
+        return self.json_dict_to_str(output_dict)
 
 
 
@@ -317,14 +318,7 @@ class Catalog():
                 output_dict["info"]["emails"] = []
             output_dict["info"]["emails"].append({"value": email})
 
-        try:
-            output_str = json.loads(output_dict)
-        except ValueError as exc:
-            raise cherrypy.HTTPError(500, f"Error in dictionary to output JSON conversion: {exc}")
-        except Exception as exc:
-            raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
-        
-        return output_str
+        return self.json_dict_to_str(output_dict)
 
 
     def get_service(self, service_id):
@@ -345,14 +339,7 @@ class Catalog():
 
         output_dict["info"]["description"] = result[0]
 
-        try:
-            output_str = json.loads(output_dict)
-        except ValueError as exc:
-            raise cherrypy.HTTPError(500, f"Error in dictionary to output JSON conversion: {exc}")
-        except Exception as exc:
-            raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
-        
-        return output_str
+        return self.json_dict_to_str(output_dict)
         
 
     def get_end_points(self, type, item_id):
@@ -425,6 +412,17 @@ class Catalog():
             return False
         return True
     
+
+    def json_dict_to_str(self, json_dict):
+        try:
+            json_str = json.dumps(json_dict)
+        except ValueError as exc:
+            raise cherrypy.HTTPError(500, f"Error in dictionary to output JSON conversion: {exc}")
+        except Exception as exc:
+            raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
+        
+        return json_str
+
 
     def execute_query(self, query, is_select = False):
         connection = None
