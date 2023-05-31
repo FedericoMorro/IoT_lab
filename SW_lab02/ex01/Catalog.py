@@ -18,6 +18,9 @@ class Catalog():
         self._max_timestamp = 120 * 60
         self._delay_check_timestamp = 60 * 60
 
+        self._mqtt_broker_hostname = "iot.eclipse.org"
+        self._mqtt_broker_port = 1883
+
 
     def loop(self):
         while True:
@@ -28,6 +31,11 @@ class Catalog():
 
 
     def GET(self, *uri, **params):      # retrieve
+
+        # Give possibility to ask for MQTT broker
+        if (len(uri) == 1 and uri[0] == "MQTTbroker"):
+            output_dict = {"hostname": self._mqtt_broker_hostname, "port": self._mqtt_broker_port}
+            return self.json_dict_to_str(output_dict)
         
         # Check path correctness
         if not (1 <= len(uri) <= 2 and uri[0] in ["devices", "users", "services"]):
@@ -54,13 +62,13 @@ class Catalog():
             input_dict = json.loads(input_str)
 
         except ValueError as exc:
-            raise cherrypy.HTTPError(400, f"Error in JSON to dictionary conversion: {exc}")
+            raise cherrypy.HTTPError(400, f"Error in input JSON to dictionary conversion: {exc}")
         except Exception as exc:
             raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
 
         # Add the new item to the database
         try:
-            timestamp = time.time()
+            timestamp = int(time.time())
             
             # Add the item in main tables and referenced ones
             if uri[0] == "devices":
@@ -106,13 +114,13 @@ class Catalog():
             input_dict = json.loads(input_str)
 
         except ValueError as exc:
-            raise cherrypy.HTTPError(400, f"Error in JSON to dictionary conversion: {exc}")
+            raise cherrypy.HTTPError(400, f"Error in input JSON to dictionary conversion: {exc}")
         except Exception as exc:
             raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
 
         # Update the timestamp in the main table
         try:
-            timestamp = time.time()
+            timestamp = int(time.time())
             
             if uri[0] == "devices":
                 self.update_timestamp(
@@ -139,7 +147,7 @@ class Catalog():
         if not (len(uri) == 2 and uri[0] in ["devices", "users", "services"]):
             raise cherrypy.HTTPError(404, "DELETE available on \"type/item_id\" (type = \"devices\", \"users\" or \"services\")")
 
-        # Delte the item from the database
+        # Delete the item from the database
         try:
             if uri[0] == "devices":
                 self.delete_item(
@@ -159,38 +167,6 @@ class Catalog():
 
         except Exception as exc:
             raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
-
-
-
-    def execute_query(self, query, is_select = False):
-        connection = None
-        cursor = None
-
-        try:
-            connection = sqlite3.connect(DB_NAME)
-        except sqlite3.Error as err:
-            print(err)
-            raise cherrypy.HTTPError(500, "Error in connection to the database")
-
-        try:
-            cursor = connection.cursor()
-            cursor.execute(query)
-            connection.commit()
-        except sqlite3.Error as err:
-            print(err)
-            raise cherrypy.HTTPError(500, f"Error in querying the database\nQuery:\n{query}")
-
-        if is_select:
-            output = cursor.fetchall()
-        else:
-            output = cursor.rowcount
-            if output <= 0:
-                raise cherrypy.HTTPError(500, f"Error in database transaction\nQuery:\n{query}")
-
-        cursor.close()
-        connection.close()
-        
-        return output
             
 
 
@@ -273,7 +249,7 @@ class Catalog():
             for protocol in end_points_dict:
                 for end_point in end_points_dict[protocol]:
                     query = f"""
-                            INSERT INTO {type}_end_points({type}_id, end_point, type)
+                            INSERT INTO {type}_end_points({type}_id, end_point, protocol)
                             VALUES('{item_id}', '{end_point["value"]}', '{protocol}');
                             """
                     self.execute_query(query)
@@ -291,18 +267,58 @@ class Catalog():
 
         output_dict = {}
         output_dict["id"] = device_id
+        output_dict["end_points"] = self.get_end_points("device", device_id)
+        output_dict["info"] = {}
 
         query = f"""
-                SELECT end_point, type
-                FROM device_end_points
+                SELECT resource
+                FROM device_resources
                 WHERE device_id = '{device_id}';"""
         result = self.execute_query(query, is_select=True)
+
+        for row in result:
+            resource = row[0]
+
+            if "resources" not in output_dict["info"]:
+                output_dict["info"]["resources"] = []
+            output_dict["info"]["resources"].append({"name": resource})
+
+        return self.json_dict_to_str(output_dict)
+
 
 
     def get_user(self, user_id):
         
         if not self.is_present("user", user_id):
             raise cherrypy.HTTPError(400, "The user is not present in the catalog")
+        
+        output_dict = {}
+        output_dict["id"] = user_id
+        output_dict["info"] = {}
+
+        query = f"""
+                SELECT name, surname
+                FROM users
+                WHERE user_id = '{user_id}';"""
+        result = self.execute_query(query, is_select=True)
+
+        output_dict["info"]["name"] = result[0]
+        output_dict["info"]["surname"] = result[1]
+
+        query = f"""
+                SELECT email
+                FROM user_emails
+                WHERE user_id = '{user_id}';"""
+        result = self.execute_query(query, is_select=True)
+
+        for row in result:
+            email = row[0]
+
+            if "emails" not in output_dict["info"]:
+                output_dict["info"]["emails"] = []
+            output_dict["info"]["emails"].append({"value": email})
+
+        return self.json_dict_to_str(output_dict)
 
 
     def get_service(self, service_id):
@@ -310,10 +326,45 @@ class Catalog():
         if not self.is_present("service", service_id):
             raise cherrypy.HTTPError(400, "The service is not present in the catalog")
 
+        output_dict = {}
+        output_dict["id"] = service_id
+        output_dict["end_points"] = self.get_end_points("service", service_id)
+        output_dict["info"] = {}
+
+        query = f"""
+                SELECT description
+                FROM services
+                WHERE service_id = '{service_id}';"""
+        result = self.execute_query(query, is_select=True)
+
+        output_dict["info"]["description"] = result[0]
+
+        return self.json_dict_to_str(output_dict)
+        
+
+    def get_end_points(self, type, item_id):
+        res_dict = {}
+        query = f"""
+                SELECT end_point, protocol
+                FROM {type}_end_points
+                WHERE {type}_id = '{item_id}';"""
+        result = self.execute_query(query, is_select=True)
+
+        for row in result:
+            end_point = row[0]
+            protocol = row[1]
+            
+            if protocol not in res_dict:
+                res_dict[protocol] = []
+            res_dict[protocol].append({"value": end_point})
+
+        return res_dict
+
+
 
     def update_timestamp(self, type, item_id, timestamp):
 
-        if self.is_present(type, item_id):
+        if not self.is_present(type, item_id):
             raise cherrypy.HTTPError(400, f"The {type} is not present in the catalog, first subscribe it")
 
         query = f"""
@@ -327,9 +378,24 @@ class Catalog():
 
         if not self.is_present(type, item_id):
             raise cherrypy.HTTPError(400, f"The {type} is not present in the database")
+        
+        if type == "device":
+            self.delete_item_referenced_tables(type, item_id, "device_end_points")
+            self.delete_item_referenced_tables(type, item_id, "device_resources")
+        elif type == "user":
+            self.delete_item_referenced_tables(type, item_id, "user_emails")
+        elif type == "service":
+            self.delete_item_referenced_tables(type, item_id, "service_end_points")
 
         query = f"""
                 DELETE FROM {type}s
+                WHERE {type}_id = '{item_id}';"""
+        self.execute_query(query)
+
+
+    def delete_item_referenced_tables(self, type, item_id, table):
+        query = f"""
+                DELETE FROM {table}
                 WHERE {type}_id = '{item_id}';"""
         self.execute_query(query)
 
@@ -345,6 +411,48 @@ class Catalog():
         if len(result) == 0:
             return False
         return True
+    
+
+    def json_dict_to_str(self, json_dict):
+        try:
+            json_str = json.dumps(json_dict)
+        except ValueError as exc:
+            raise cherrypy.HTTPError(500, f"Error in dictionary to output JSON conversion: {exc}")
+        except Exception as exc:
+            raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
+        
+        return json_str
+
+
+    def execute_query(self, query, is_select = False):
+        connection = None
+        cursor = None
+
+        try:
+            connection = sqlite3.connect(DB_NAME)
+        except sqlite3.Error as err:
+            print(err)
+            raise cherrypy.HTTPError(500, "Error in connection to the database")
+
+        try:
+            cursor = connection.cursor()
+            cursor.execute(query)
+            connection.commit()
+        except sqlite3.Error as err:
+            print(err)
+            raise cherrypy.HTTPError(500, f"Error in querying the database\nQuery:\n{query}")
+
+        if is_select:
+            output = cursor.fetchall()
+        else:
+            output = cursor.rowcount
+            if output <= 0:
+                raise cherrypy.HTTPError(500, f"Error in database transaction\nQuery:\n{query}")
+
+        cursor.close()
+        connection.close()
+        
+        return output
 
 
 
