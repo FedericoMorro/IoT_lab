@@ -58,24 +58,24 @@ class Catalog():
             timestamp = time.time()
             
             # Add the item in main tables and referenced ones
-            if type == "device":
-                self._insert_device(
+            if type == "devices":
+                self.insert_device(
                     device_id= input_dict["id"],
                     timestamp= timestamp,
                     end_points_dict= input_dict["end_points"],
                     resources_list= input_dict["info"]["resources"]
                 )
 
-            elif type == "user":
-                self._insert_user(
+            elif type == "users":
+                self.insert_user(
                     user_id= input_dict["id"],
                     name= input_dict["info"]["name"],
                     surname= input_dict["info"]["surname"],
                     emails_list= input_dict["info"]["emails"]
                 )
 
-            elif type == "service":
-                self._insert_service(
+            elif type == "services":
+                self.insert_service(
                     service_id= input_dict["id"],
                     timestamp= timestamp,
                     end_points_dict= input_dict["end_points"],
@@ -92,7 +92,51 @@ class Catalog():
 
 
     def PUT(self, *uri, **params):      # update
-        pass
+        
+        # Check path correctness
+        if not (len(uri) == 2 and uri[0] in ["devices", "services"] and uri[1] == "refresh"):
+            cherrypy.HTTPError(404, "POST available on \"type/refresh\" (type = \"devices\" or \"services\")")
+        
+        # Get payload and convert it to JSON
+        try:
+            input_str = cherrypy.request.body.read()
+            if len(input_str) == 0:
+                cherrypy.HTTPError(400, "Empty POST")
+        
+            input_dict = json.loads(input_str)
+
+        except ValueError as exc:
+            cherrypy.HTTPError(400, f"Error in JSON to dictionary conversion: {exc}")
+        except Exception as exc:
+            cherrypy.HTTPError(500, f"An exception occurred: {exc}")
+
+        # Add the new item to the database
+        try:
+            type = uri[0]
+            timestamp = time.time()
+            
+            # Add the item in main tables and referenced ones
+            if type == "devices":
+                self.update(
+                    type= "device",
+                    item_id= input_dict["id"],
+                    timestamp= timestamp
+                )
+
+            elif type == "services":
+                self.update(
+                    type= "service",
+                    item_id= input_dict["id"],
+                    timestamp= timestamp
+                )
+
+            else:
+                cherrypy.HTTPError(400, f"Unknown item type: {type}")
+
+        except KeyError as exc:
+            cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
+        except Exception as exc:
+            cherrypy.HTTPError(500, f"An exception occurred: {exc}")
 
 
     def DELETE(self, *uri, **params):   # delete
@@ -100,7 +144,7 @@ class Catalog():
 
 
 
-    def _execute_query(self, query, is_select = False):
+    def execute_query(self, query, is_select = False):
         connection = None
         cursor = None
 
@@ -132,26 +176,22 @@ class Catalog():
             
 
 
-    def _insert_device(self, device_id, timestamp, end_points_dict, resources_list):
+    def insert_device(self, device_id, timestamp, end_points_dict, resources_list):
+
+        if self.is_present("device", device_id):
+            cherrypy.HTTPError(400, "Device already present in the catalog")
+
         query = f"""
                 INSERT INTO devices(device_id, timestamp)
                 VALUES({device_id}, {timestamp});
                 """
-        self._execute_query(query)
+        self.execute_query(query)
 
-        try:
-            for type in end_points_dict:
-                for end_point in end_points_dict[type]:
-                    query = f"""
-                            INSERT INTO device_end_points(device_id, end_point, type)
-                            VALUES({device_id}, {end_point["value"]}, {type});
-                            """
-                    self._execute_query(query)
-        
-        except KeyError as exc:
-            cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
-        except Exception as exc:
-            cherrypy.HTTPError(500, f"An exception occurred: {exc}")
+        self.insert_end_points(
+            type= "device",
+            item_id= device_id,
+            end_points_dict= end_points_dict
+        )
 
         try:
             for resource in resources_list:
@@ -159,7 +199,7 @@ class Catalog():
                         INSERT INTO device_resources(device_id, resource)
                         VALUES({device_id}, {resource["name"]});
                         """
-                self._execute_query(query)
+                self.execute_query(query)
         
         except KeyError as exc:
             cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
@@ -167,12 +207,16 @@ class Catalog():
             cherrypy.HTTPError(500, f"An exception occurred: {exc}")
 
 
-    def _insert_user(self, user_id, name, surname, emails_list):
+    def insert_user(self, user_id, name, surname, emails_list):
+
+        if self.is_present("user", user_id):
+            cherrypy.HTTPError(400, "User already present in the catalog")
+
         query = f"""
                 INSERT INTO users(user_id, name, surname)
                 VALUES({user_id}, {name}, {surname});
                 """
-        self._execute_query(query)
+        self.execute_query(query)
 
         try:
             for email in emails_list:
@@ -180,7 +224,7 @@ class Catalog():
                         INSERT INTO user_emails(user_id, email)
                         VALUES({user_id}, {email["value"]});
                         """
-                self._execute_query(query)
+                self.execute_query(query)
         
         except KeyError as exc:
             cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
@@ -188,26 +232,63 @@ class Catalog():
             cherrypy.HTTPError(500, f"An exception occurred: {exc}")
 
 
-    def _insert_service(self, service_id, timestamp, end_points_dict, description):
+    def insert_service(self, service_id, timestamp, end_points_dict, description):
+
+        if self.is_present("service", service_id):
+            cherrypy.HTTPError(400, "Service already present in the catalog")
+
         query = f"""
                 INSERT INTO services(service_id, description, timestamp)
                 VALUES({service_id}, {description}, {timestamp});
                 """
-        self._execute_query(query)
+        self.execute_query(query)
 
+        self.insert_end_points(
+            type= "service",
+            item_id= service_id,
+            end_points_dict= end_points_dict
+        )
+
+
+    def insert_end_points(self, type, item_id, end_points_dict):
         try:
-            for type in end_points_dict:
-                for end_point in end_points_dict[type]:
+            for protocol in end_points_dict:
+                for end_point in end_points_dict[protocol]:
                     query = f"""
-                            INSERT INTO service_end_points(service_id, end_point, type)
-                            VALUES({service_id}, {end_point["value"]}, {type});
+                            INSERT INTO {type}_end_points({type}_id, end_point, type)
+                            VALUES({item_id}, {end_point["value"]}, {protocol});
                             """
-                    self._execute_query(query)
+                    self.execute_query(query)
         
         except KeyError as exc:
             cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
         except Exception as exc:
             cherrypy.HTTPError(500, f"An exception occurred: {exc}")
+
+
+    def update(self, type, item_id, timestamp):
+
+        if self.is_present(type, item_id):
+            cherrypy.HTTPError(400, "The device is not present in the database, first subscribe it")
+
+        query = f"""
+                UPDATE {type}s
+                SET timestamp = {timestamp}
+                WHERE {type}_id = '{item_id}';"""
+        self.execute_query(query)
+
+
+    def is_present(self, type, item_id):
+        query = f"""
+                SELECT *
+                FROM {type}s
+                WHERE {type}_id = '{item_id}';
+                """
+        result = self.execute_query(query, is_select=True)
+        
+        if len(result) == 0:
+            return False
+        return True
 
 
 
