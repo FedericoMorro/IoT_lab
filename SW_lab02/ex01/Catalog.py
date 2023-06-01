@@ -49,7 +49,6 @@ class Catalog():
 
 
     def callback_delete_old(self):
-
         timestamp = int(time.time())
         
         for type in ["device", "service"]:
@@ -78,13 +77,13 @@ class Catalog():
         
         # Check topic
         topic_elem = msg.topic.split("/")
+        
 
         # TODO: manage insertion or timestamp update f() of topic
 
 
 
     def GET(self, *uri, **params):      # retrieve
-
         # Give possibility to ask for MQTT broker
         if (len(uri) == 1 and uri[0] == "MQTTbroker"):
             output_dict = {"hostname": self._mqtt_broker_hostname, "port": self._mqtt_broker_port}
@@ -94,12 +93,7 @@ class Catalog():
         if not (1 <= len(uri) <= 2 and uri[0] in ["devices", "users", "services"]):
             raise cherrypy.HTTPError(404, "GET available on \"type\" or \"type/item_id\" (type = \"devices\", \"users\" or \"services\")")
 
-        if uri[0] == "devices":
-            type = "device"
-        elif uri[0] == "users":
-            type = "user"
-        elif uri[0] == "services":
-            type = "service"
+        type = uri[0].removesuffix("s")
 
         if len(uri) == 2:
             return self.get_item(type, uri[1])
@@ -114,7 +108,6 @@ class Catalog():
 
 
     def POST(self, *uri, **params):     # create
-        
         # Check path correctness
         if not (len(uri) == 2 and uri[0] in ["devices", "users", "services"] and uri[1] == "subscription"):
             raise cherrypy.HTTPError(404, "POST available on \"type/subscription\" (type = \"devices\", \"users\" or \"services\")")
@@ -133,22 +126,16 @@ class Catalog():
             raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
 
         # Add the new item to the database
-        timestamp = int(time.time())
-
-        if uri[0] == "devices":
-            type = "device"
-        elif uri[0] == "users":
-            type = "user"
-        elif uri[0] == "services":
-            type = "service"
-
-        self.insert_item(input_dict, type, timestamp)
+        self.insert_item(
+            json_dict= input_dict,
+            type= uri[0].removesuffix("s"),
+            timestamp= int(time.time())
+        )
         
         return "New item correctly stored"
 
 
     def PUT(self, *uri, **params):      # update
-        
         # Check path correctness
         if not (len(uri) == 2 and uri[0] in ["devices", "services"] and uri[1] == "refresh"):
             raise cherrypy.HTTPError(404, "PUT available on \"type/refresh\" (type = \"devices\" or \"services\")")
@@ -166,22 +153,25 @@ class Catalog():
         except Exception as exc:
             raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
 
-        # Update the timestamp in the main table
         try:
+            type= uri[0].removesuffix("s")
+            item_id = input_dict["id"]
             timestamp = int(time.time())
-            
-            if uri[0] == "devices":
-                self.update_timestamp(
-                    type= "device",
-                    item_id= input_dict["id"],
-                    timestamp= timestamp
-                )
-            elif uri[0] == "services":
-                self.update_timestamp(
-                    type= "service",
-                    item_id= input_dict["id"],
-                    timestamp= timestamp
-                )
+
+            # If it's not present (probably elapsed timestamp), add the device
+            if not self.is_present(type, item_id):
+                self.insert_item(input_dict, type, timestamp)
+
+            else:
+                # If info stored different from the one received, delete entry and re-add it to the catalog
+                stored_data_str = self.json_dict_to_str(self.get_item(type, item_id))
+                if stored_data_str != json.dumps(input_dict):
+                    self.delete_item(type, item_id)
+                    self.insert_item(input_dict, type, timestamp)
+
+                # Otherwise simply update the timestamp
+                else:
+                    self.update_timestamp(type, item_id, timestamp)
 
         except KeyError as exc:
             raise cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
@@ -192,28 +182,16 @@ class Catalog():
 
 
     def DELETE(self, *uri, **params):   # delete
-        
         # Check path correctness
         if not (len(uri) == 2 and uri[0] in ["devices", "users", "services"]):
             raise cherrypy.HTTPError(404, "DELETE available on \"type/item_id\" (type = \"devices\", \"users\" or \"services\")")
 
         # Delete the item from the database
         try:
-            if uri[0] == "devices":
-                self.delete_item(
-                    type= "device",
-                    item_id= uri[1]
-                )
-            elif uri[0] == "users":
-                self.delete_item(
-                    type= "user",
-                    item_id= uri[1]
-                )
-            elif uri[0] == "services":
-                self.delete_item(
-                    type= "service",
-                    item_id= uri[1]
-                )
+            self.delete_item(
+                type= uri[0].removesuffix("s"),
+                item_id= uri[1]
+            )
 
         except Exception as exc:
             raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
@@ -225,6 +203,10 @@ class Catalog():
     def insert_item(self, json_dict, type, timestamp):
         # Add the item in main tables and referenced ones
         try:
+            # Check if it's already present
+            if self.is_present(type, item_id= json_dict["id"]):
+                raise cherrypy.HTTPError(400, f"Item {type}:{json_dict['id']} already present in the catalog (insert)")
+            
             if type == "device":
                 self.insert_device(
                     device_id= json_dict["id"],
@@ -254,10 +236,6 @@ class Catalog():
         
     
     def insert_device(self, device_id, timestamp, end_points_dict, resources_list):
-
-        if self.is_present("device", device_id):
-            raise cherrypy.HTTPError(400, "Device already present in the catalog")
-
         query = f"""
                 INSERT INTO devices(device_id, timestamp)
                 VALUES('{device_id}', {timestamp});
@@ -285,10 +263,6 @@ class Catalog():
 
 
     def insert_user(self, user_id, name, surname, emails_list):
-
-        if self.is_present("user", user_id):
-            raise cherrypy.HTTPError(400, "User already present in the catalog")
-
         query = f"""
                 INSERT INTO users(user_id, name, surname)
                 VALUES('{user_id}', '{name}', '{surname}');
@@ -310,10 +284,6 @@ class Catalog():
 
 
     def insert_service(self, service_id, timestamp, end_points_dict, description):
-
-        if self.is_present("service", service_id):
-            raise cherrypy.HTTPError(400, "Service already present in the catalog")
-
         query = f"""
                 INSERT INTO services(service_id, description, timestamp)
                 VALUES(''{service_id}', '{description}', {timestamp});
@@ -355,6 +325,9 @@ class Catalog():
     
 
     def get_item(self, type, item_id):
+        if not self.is_present(type, item_id):
+            raise cherrypy.HTTPError(400, f"Item {type}:{item_id} not present in the catalog (get)")
+
         if type == "device":
             return self.get_device(item_id)
         elif type == "user":
@@ -364,10 +337,6 @@ class Catalog():
 
 
     def get_device(self, device_id):
-        
-        if not self.is_present("device", device_id):
-            raise cherrypy.HTTPError(400, "The device is not present in the catalog")
-
         output_dict = {}
         output_dict["id"] = device_id
         output_dict["end_points"] = self.get_end_points("device", device_id)
@@ -391,10 +360,6 @@ class Catalog():
 
 
     def get_user(self, user_id):
-        
-        if not self.is_present("user", user_id):
-            raise cherrypy.HTTPError(400, "The user is not present in the catalog")
-        
         output_dict = {}
         output_dict["id"] = user_id
         output_dict["info"] = {}
@@ -427,10 +392,6 @@ class Catalog():
 
 
     def get_service(self, service_id):
-        
-        if not self.is_present("service", service_id):
-            raise cherrypy.HTTPError(400, "The service is not present in the catalog")
-
         output_dict = {}
         output_dict["id"] = service_id
         output_dict["end_points"] = self.get_end_points("service", service_id)
@@ -470,10 +431,6 @@ class Catalog():
 
 
     def get_timestamp(self, type, item_id):
-
-        if not self.is_present(type, item_id):
-            raise cherrypy.HTTPError(500, f"The {type}:{item_id} is not present in the catalog")
-        
         query = f"""
                 SELECT timestamp
                 FROM {type}s
@@ -485,10 +442,6 @@ class Catalog():
     
 
     def update_timestamp(self, type, item_id, timestamp):
-
-        if not self.is_present(type, item_id):
-            raise cherrypy.HTTPError(400, f"The {type} is not present in the catalog, first subscribe it")
-
         query = f"""
                 UPDATE {type}s
                 SET timestamp = {timestamp}
@@ -499,10 +452,6 @@ class Catalog():
 
 
     def delete_item(self, type, item_id):
-
-        if not self.is_present(type, item_id):
-            raise cherrypy.HTTPError(400, f"The {type} is not present in the database")
-        
         if type == "device":
             self.delete_item_referenced_tables(type, item_id, "device_end_points")
             self.delete_item_referenced_tables(type, item_id, "device_resources")
