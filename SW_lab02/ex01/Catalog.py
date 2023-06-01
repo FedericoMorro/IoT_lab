@@ -33,7 +33,7 @@ class Catalog():
         for item in ["devices", "services", "users"]:
             for operation in ["subscription", "refresh"]:
                 self._subscribed_topics.append(f"{self._base_topic}/{item}/{operation}")
-        self._mqtt_client.subscribe(self._subscribed_topics)
+        self._mqtt_client.subscribe(self._subscribed_topics, qos=2)
 
         self._thread = threading.Thread(target=self.callback_delete_old)
         self._thread.start()
@@ -74,7 +74,8 @@ class Catalog():
         except Exception as exc:
             raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
         
-        # TODO: check topic
+        # Check topic
+        topic_elem = msg.topic.split("/")
 
         # TODO: manage insertion or timestamp update f() of topic
 
