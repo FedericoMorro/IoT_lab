@@ -162,7 +162,6 @@ class Catalog():
             type= uri[0].removesuffix("s"),
             timestamp= int(time.time())
         )
-
         
         return "Timestamp refresh correctly executed"
 
@@ -222,6 +221,86 @@ class Catalog():
         except Exception as exc:
             raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
         
+
+    def update_item(self, json_dict, type, timestamp):
+        try:
+            item_id = json_dict["id"]
+
+            # If it's not present (probably elapsed timestamp), add the device
+            if not self.is_present(type, item_id):
+                self.insert_item(json_dict, type, timestamp)
+
+            else:
+                # If info stored different from the one received, delete entry and re-add it to the catalog
+                stored_data_str = self.json_dict_to_str(self.get_item(type, item_id))
+                if stored_data_str != json.dumps(json_dict):
+                    self.delete_item(type, item_id)
+                    self.insert_item(json_dict, type, timestamp)
+
+                # Otherwise simply update the timestamp
+                else:
+                    self.update_timestamp(type, item_id, timestamp)
+        
+        except KeyError as exc:
+            raise cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
+        except Exception as exc:
+            raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
+        
+
+
+    def get_all_items(self, type):
+        query = f"""
+                SELECT {type}_id
+                FROM {type}s;
+                """
+        result = self.execute_query(query, is_select=True)
+
+        return result
+    
+
+    def get_item(self, type, item_id):
+        if not self.is_present(type, item_id):
+            raise cherrypy.HTTPError(400, f"Item {type}:{item_id} not present in the catalog (get)")
+
+        if type == "device":
+            return self.get_device(item_id)
+        elif type == "user":
+            return self.get_user(item_id)
+        elif type == "service":
+            return self.get_service(item_id)
+
+
+
+    def is_present(self, type, item_id):
+        query = f"""
+                SELECT *
+                FROM {type}s
+                WHERE {type}_id = '{item_id}';
+                """
+        result = self.execute_query(query, is_select=True)
+        
+        if len(result) == 0:
+            return False
+        return True
+
+
+
+    def delete_item(self, type, item_id):
+        if type == "device":
+            self.delete_item_referenced_tables(type, item_id, "device_end_points")
+            self.delete_item_referenced_tables(type, item_id, "device_resources")
+        elif type == "user":
+            self.delete_item_referenced_tables(type, item_id, "user_emails")
+        elif type == "service":
+            self.delete_item_referenced_tables(type, item_id, "service_end_points")
+
+        query = f"""
+                DELETE FROM {type}s
+                WHERE {type}_id = '{item_id}';
+                """
+        self.execute_query(query)
+        
+
     
     def insert_device(self, device_id, timestamp, end_points_dict, resources_list):
         query = f"""
@@ -300,28 +379,6 @@ class Catalog():
         except Exception as exc:
             raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
         
-
-
-    def get_all_items(self, type):
-        query = f"""
-                SELECT {type}_id
-                FROM {type}s;
-                """
-        result = self.execute_query(query, is_select=True)
-
-        return result
-    
-
-    def get_item(self, type, item_id):
-        if not self.is_present(type, item_id):
-            raise cherrypy.HTTPError(400, f"Item {type}:{item_id} not present in the catalog (get)")
-
-        if type == "device":
-            return self.get_device(item_id)
-        elif type == "user":
-            return self.get_user(item_id)
-        elif type == "service":
-            return self.get_service(item_id)
 
 
     def get_device(self, device_id):
@@ -429,31 +486,6 @@ class Catalog():
         return result[0]
     
 
-    def update_item(self, json_dict, type, timestamp):
-        try:
-            item_id = json_dict["id"]
-
-            # If it's not present (probably elapsed timestamp), add the device
-            if not self.is_present(type, item_id):
-                self.insert_item(json_dict, type, timestamp)
-
-            else:
-                # If info stored different from the one received, delete entry and re-add it to the catalog
-                stored_data_str = self.json_dict_to_str(self.get_item(type, item_id))
-                if stored_data_str != json.dumps(json_dict):
-                    self.delete_item(type, item_id)
-                    self.insert_item(json_dict, type, timestamp)
-
-                # Otherwise simply update the timestamp
-                else:
-                    self.update_timestamp(type, item_id, timestamp)
-        
-        except KeyError as exc:
-            raise cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
-        except Exception as exc:
-            raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
-    
-
     def update_timestamp(self, type, item_id, timestamp):
         query = f"""
                 UPDATE {type}s
@@ -464,42 +496,12 @@ class Catalog():
 
 
 
-    def delete_item(self, type, item_id):
-        if type == "device":
-            self.delete_item_referenced_tables(type, item_id, "device_end_points")
-            self.delete_item_referenced_tables(type, item_id, "device_resources")
-        elif type == "user":
-            self.delete_item_referenced_tables(type, item_id, "user_emails")
-        elif type == "service":
-            self.delete_item_referenced_tables(type, item_id, "service_end_points")
-
-        query = f"""
-                DELETE FROM {type}s
-                WHERE {type}_id = '{item_id}';
-                """
-        self.execute_query(query)
-
-
     def delete_item_referenced_tables(self, type, item_id, table):
         query = f"""
                 DELETE FROM {table}
                 WHERE {type}_id = '{item_id}';
                 """
         self.execute_query(query)
-
-
-
-    def is_present(self, type, item_id):
-        query = f"""
-                SELECT *
-                FROM {type}s
-                WHERE {type}_id = '{item_id}';
-                """
-        result = self.execute_query(query, is_select=True)
-        
-        if len(result) == 0:
-            return False
-        return True
 
 
 
