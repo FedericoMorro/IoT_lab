@@ -19,6 +19,8 @@ class Catalog():
         self._max_timestamp = 120 * 60
         self._delay_check_timestamp_minutes = 60
 
+        self.db_name = DB_NAME
+
         self._client_id = "IoT_lab_group3_Catalog"
         self._broker_hostname = "iot.eclipse.org"
         self._broker_port = 1883
@@ -527,7 +529,7 @@ class Catalog():
         cursor = None
 
         try:
-            connection = sqlite3.connect(DB_NAME)
+            connection = sqlite3.connect(self._db_name)
         except sqlite3.Error as err:
             print(err)
             raise cherrypy.HTTPError(500, "Error in connection to the database")
