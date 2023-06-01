@@ -130,36 +130,16 @@ class Catalog():
             raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
 
         # Add the new item to the database
-        try:
-            timestamp = int(time.time())
-            
-            # Add the item in main tables and referenced ones
-            if uri[0] == "devices":
-                self.insert_device(
-                    device_id= input_dict["id"],
-                    timestamp= timestamp,
-                    end_points_dict= input_dict["end_points"],
-                    resources_list= input_dict["info"]["resources"]
-                )
-            elif uri[0] == "users":
-                self.insert_user(
-                    user_id= input_dict["id"],
-                    name= input_dict["info"]["name"],
-                    surname= input_dict["info"]["surname"],
-                    emails_list= input_dict["info"]["emails"]
-                )
-            elif uri[0] == "services":
-                self.insert_service(
-                    service_id= input_dict["id"],
-                    timestamp= timestamp,
-                    end_points_dict= input_dict["end_points"],
-                    description= input_dict["info"]["description"] 
-                )
+        timestamp = int(time.time())
 
-        except KeyError as exc:
-            raise cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
-        except Exception as exc:
-            raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
+        if uri[0] == "devices":
+            type = "device"
+        elif uri[0] == "users":
+            type = "user"
+        elif uri[0] == "services":
+            type = "service"
+
+        self.insert_item(input_dict, type, timestamp)
         
         return "New item correctly stored"
 
@@ -239,6 +219,37 @@ class Catalog():
             
 
 
+    def insert_item(self, json_dict, type, timestamp):
+        # Add the item in main tables and referenced ones
+        try:
+            if type == "device":
+                self.insert_device(
+                    device_id= json_dict["id"],
+                    timestamp= timestamp,
+                    end_points_dict= json_dict["end_points"],
+                    resources_list= json_dict["info"]["resources"]
+                )
+            elif type == "user":
+                self.insert_user(
+                    user_id= json_dict["id"],
+                    name= json_dict["info"]["name"],
+                    surname= json_dict["info"]["surname"],
+                    emails_list= json_dict["info"]["emails"]
+                )
+            elif type == "service":
+                self.insert_service(
+                    service_id= json_dict["id"],
+                    timestamp= timestamp,
+                    end_points_dict= json_dict["end_points"],
+                    description= json_dict["info"]["description"] 
+                )
+
+        except KeyError as exc:
+            raise cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
+        except Exception as exc:
+            raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
+        
+    
     def insert_device(self, device_id, timestamp, end_points_dict, resources_list):
 
         if self.is_present("device", device_id):
@@ -327,6 +338,25 @@ class Catalog():
             raise cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
         except Exception as exc:
             raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
+        
+
+    def get_all_items(self, type):
+        query = f"""
+                SELECT {type}_id
+                FROM {type}s;
+                """
+        result = self.execute_query(query, is_select=True)
+
+        return result
+    
+
+    def get_item(self, type, item_id):
+        if type == "device":
+            return self.get_device(item_id)
+        elif type == "user":
+            return self.get_user(item_id)
+        elif type == "service":
+            return self.get_service(item_id)
 
 
     def get_device(self, device_id):
@@ -435,7 +465,6 @@ class Catalog():
         return res_dict
 
 
-
     def update_timestamp(self, type, item_id, timestamp):
 
         if not self.is_present(type, item_id):
@@ -503,25 +532,6 @@ class Catalog():
         if len(result) == 0:
             return False
         return True
-    
-
-    def get_all_items(self, type):
-        query = f"""
-                SELECT {type}_id
-                FROM {type}s;
-                """
-        result = self.execute_query(query, is_select=True)
-
-        return result
-    
-
-    def get_item(self, type, item_id):
-        if type == "device":
-            return self.get_device(item_id)
-        elif type == "user":
-            return self.get_user(item_id)
-        elif type == "service":
-            return self.get_service(item_id)
 
     
 
