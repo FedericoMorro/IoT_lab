@@ -91,21 +91,15 @@ class Catalog():
         if not (1 <= len(uri) <= 2 and uri[0] in ["devices", "users", "services"]):
             raise cherrypy.HTTPError(404, "GET available on \"type\" or \"type/item_id\" (type = \"devices\", \"users\" or \"services\")")
 
+        if uri[0] == "devices":
+            type = "device"
+        elif uri[0] == "users":
+            type = "user"
+        elif uri[0] == "services":
+            type = "service"
+
         if len(uri) == 2:
-            if uri[0] == "devices":
-                return self.get_device(uri[1])
-            elif uri[0] == "users":
-                return self.get_user(uri[1])
-            elif uri[0] == "services":
-                return self.get_service(uri[1])
-            
-        elif len(uri) == 1:
-            if uri[0] == "devices":
-                type = "device"
-            elif uri[0] == "users":
-                type = "user"
-            elif uri[0] == "services":
-                type = "service"
+            return self.get_item(type, uri[1])
 
         output_dict = []
         items_list = self.get_all_items(type)
