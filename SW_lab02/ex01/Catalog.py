@@ -58,7 +58,7 @@ class Catalog():
                 item_id = item[0]
 
                 item_timestamp = self.get_timestamp(type, item_id)
-                if timestamp - item_timestamp > self._max_timestamp:
+                if (timestamp - item_timestamp) > self._max_timestamp:
                     self.delete_item(type, item_id)
         
         time.sleep(self._delay_check_timestamp_minutes)
@@ -80,9 +80,26 @@ class Catalog():
         type = topic_elem[3].removesuffix("s")
         operation = topic_elem[4]
 
-        # Perform subscription or timestamp update
+        # Perform subscription or refresh
+        if operation == "subscription":
+            self.insert_item(
+                json_dict= input_dict,
+                type= type,
+                timestamp= int(time.time())
+            )
+        elif operation == "refresh":
+            self.update_item(
+                json_dict= input_dict,
+                type= type,
+                timestamp= int(time.time())
+            )
 
-        # TODO: manage insertion or timestamp update f() of topic
+        # Publish response message
+        self._mqtt_client.publish(
+            topic= f"{msg.topic}/{input_dict['id']}",
+            payload= f"Operation on {type}:{input_dict['id']} correctly performed",
+            qos= 2
+        )
 
 
 
