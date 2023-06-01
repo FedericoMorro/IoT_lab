@@ -77,7 +77,10 @@ class Catalog():
         
         # Check topic
         topic_elem = msg.topic.split("/")
-        
+        type = topic_elem[3].removesuffix("s")
+        operation = topic_elem[4]
+
+        # Perform subscription or timestamp update
 
         # TODO: manage insertion or timestamp update f() of topic
 
@@ -153,30 +156,13 @@ class Catalog():
         except Exception as exc:
             raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
 
-        try:
-            type= uri[0].removesuffix("s")
-            item_id = input_dict["id"]
-            timestamp = int(time.time())
+        # Update item
+        self.update_item(
+            json_dict= input_dict,
+            type= uri[0].removesuffix("s"),
+            timestamp= int(time.time())
+        )
 
-            # If it's not present (probably elapsed timestamp), add the device
-            if not self.is_present(type, item_id):
-                self.insert_item(input_dict, type, timestamp)
-
-            else:
-                # If info stored different from the one received, delete entry and re-add it to the catalog
-                stored_data_str = self.json_dict_to_str(self.get_item(type, item_id))
-                if stored_data_str != json.dumps(input_dict):
-                    self.delete_item(type, item_id)
-                    self.insert_item(input_dict, type, timestamp)
-
-                # Otherwise simply update the timestamp
-                else:
-                    self.update_timestamp(type, item_id, timestamp)
-
-        except KeyError as exc:
-            raise cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
-        except Exception as exc:
-            raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
         
         return "Timestamp refresh correctly executed"
 
@@ -203,27 +189,29 @@ class Catalog():
     def insert_item(self, json_dict, type, timestamp):
         # Add the item in main tables and referenced ones
         try:
+            item_id = json_dict["id"]
+
             # Check if it's already present
-            if self.is_present(type, item_id= json_dict["id"]):
-                raise cherrypy.HTTPError(400, f"Item {type}:{json_dict['id']} already present in the catalog (insert)")
+            if self.is_present(type, item_id):
+                raise cherrypy.HTTPError(400, f"Item {type}:{item_id} already present in the catalog (insert)")
             
             if type == "device":
                 self.insert_device(
-                    device_id= json_dict["id"],
+                    device_id= item_id,
                     timestamp= timestamp,
                     end_points_dict= json_dict["end_points"],
                     resources_list= json_dict["info"]["resources"]
                 )
             elif type == "user":
                 self.insert_user(
-                    user_id= json_dict["id"],
+                    user_id= item_id,
                     name= json_dict["info"]["name"],
                     surname= json_dict["info"]["surname"],
                     emails_list= json_dict["info"]["emails"]
                 )
             elif type == "service":
                 self.insert_service(
-                    service_id= json_dict["id"],
+                    service_id= item_id,
                     timestamp= timestamp,
                     end_points_dict= json_dict["end_points"],
                     description= json_dict["info"]["description"] 
@@ -439,6 +427,31 @@ class Catalog():
         result = self.execute_query(query, is_select=True)
 
         return result[0]
+    
+
+    def update_item(self, json_dict, type, timestamp):
+        try:
+            item_id = json_dict["id"]
+
+            # If it's not present (probably elapsed timestamp), add the device
+            if not self.is_present(type, item_id):
+                self.insert_item(json_dict, type, timestamp)
+
+            else:
+                # If info stored different from the one received, delete entry and re-add it to the catalog
+                stored_data_str = self.json_dict_to_str(self.get_item(type, item_id))
+                if stored_data_str != json.dumps(json_dict):
+                    self.delete_item(type, item_id)
+                    self.insert_item(json_dict, type, timestamp)
+
+                # Otherwise simply update the timestamp
+                else:
+                    self.update_timestamp(type, item_id, timestamp)
+        
+        except KeyError as exc:
+            raise cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
+        except Exception as exc:
+            raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
     
 
     def update_timestamp(self, type, item_id, timestamp):
