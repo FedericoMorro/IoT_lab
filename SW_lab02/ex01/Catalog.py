@@ -12,8 +12,8 @@ DB_TABLES = ["devices", "device_end_points", "device_resources",
 
 
 class Catalog():
-    exposed = True
 
+    exposed = True
 
     def __init__(self):
         self._max_timestamp = 120 * 60
@@ -47,6 +47,7 @@ class Catalog():
         self._thread.join()
 
 
+
     def callback_delete_old(self):
 
         timestamp = int(time.time())
@@ -64,6 +65,7 @@ class Catalog():
         time.sleep(self._delay_check_timestamp_minutes)
 
 
+
     def callback_on_MQTT_message(self, paho_mqtt, userdata, msg):
         # Get the payload and convert in to dictionary
         try:
@@ -78,6 +80,7 @@ class Catalog():
         topic_elem = msg.topic.split("/")
 
         # TODO: manage insertion or timestamp update f() of topic
+
 
 
     def GET(self, *uri, **params):      # retrieve
@@ -340,6 +343,7 @@ class Catalog():
             raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
         
 
+
     def get_all_items(self, type):
         query = f"""
                 SELECT {type}_id
@@ -384,7 +388,6 @@ class Catalog():
             output_dict["info"]["resources"].append({"name": resource})
 
         return self.json_dict_to_str(output_dict)
-
 
 
     def get_user(self, user_id):
@@ -465,18 +468,6 @@ class Catalog():
         return res_dict
 
 
-    def update_timestamp(self, type, item_id, timestamp):
-
-        if not self.is_present(type, item_id):
-            raise cherrypy.HTTPError(400, f"The {type} is not present in the catalog, first subscribe it")
-
-        query = f"""
-                UPDATE {type}s
-                SET timestamp = {timestamp}
-                WHERE {type}_id = '{item_id}';
-                """
-        self.execute_query(query)
-
 
     def get_timestamp(self, type, item_id):
 
@@ -491,6 +482,20 @@ class Catalog():
         result = self.execute_query(query, is_select=True)
 
         return result[0]
+    
+
+    def update_timestamp(self, type, item_id, timestamp):
+
+        if not self.is_present(type, item_id):
+            raise cherrypy.HTTPError(400, f"The {type} is not present in the catalog, first subscribe it")
+
+        query = f"""
+                UPDATE {type}s
+                SET timestamp = {timestamp}
+                WHERE {type}_id = '{item_id}';
+                """
+        self.execute_query(query)
+
 
 
     def delete_item(self, type, item_id):
@@ -521,6 +526,7 @@ class Catalog():
         self.execute_query(query)
 
 
+
     def is_present(self, type, item_id):
         query = f"""
                 SELECT *
@@ -533,17 +539,6 @@ class Catalog():
             return False
         return True
 
-    
-
-    def json_dict_to_str(self, json_dict):
-        try:
-            json_str = json.dumps(json_dict)
-        except ValueError as exc:
-            raise cherrypy.HTTPError(500, f"Error in dictionary to output JSON conversion: {exc}")
-        except Exception as exc:
-            raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
-        
-        return json_str
 
 
     def execute_query(self, query, is_select = False):
@@ -575,6 +570,18 @@ class Catalog():
         connection.close()
         
         return output
+
+
+
+    def json_dict_to_str(self, json_dict):
+        try:
+            json_str = json.dumps(json_dict)
+        except ValueError as exc:
+            raise cherrypy.HTTPError(500, f"Error in dictionary to output JSON conversion: {exc}")
+        except Exception as exc:
+            raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
+        
+        return json_str
 
 
 
