@@ -5,6 +5,7 @@ import Device
 
 REFRESH_TIME = 60
 
+
 def insert_dev() -> Device:
     print("Insert a new device")
     
