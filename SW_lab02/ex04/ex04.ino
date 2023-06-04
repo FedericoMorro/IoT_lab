@@ -10,7 +10,7 @@
 #define TEMPERATURE_PIN A0
 
 
-MBED_RPI_PICO_Timer RefreshTimer1(1);
+MBED_RPI_PICO_Timer ITimer1(1);
 
 // WiFi
 char ssid[] = SECRET_SSID;
@@ -35,8 +35,8 @@ double temperature;
 
 // Functions prototypes
 String registering_payload_encode();
-void registering();
-void refreshing();
+int registering();
+void refreshing(uint alarm_num);
 
 
 void setup() {
@@ -54,7 +54,7 @@ void setup() {
 
     Serial.print("Connected with IP address: ");
     Serial.println(WiFi.localIP());
-    RefreshTimer1.setInterval(REFRESH_TIME, refreshing)
+    ITimer1.setInterval(REFRESH_TIME, refreshing);
 }
 
 
@@ -66,7 +66,7 @@ void loop() {
     temperature = 1.0 / ( (log(r / (double)R0) / (double)B) + (1.0 / ((double)T0 + TK))) - TK;
     Serial.print("[DEBUG] Measured temperature: "); Serial.println(temperature);
 
-    registering();
+    int ret = registering();
 
     Serial.print("[DEBUG] Response code: " + String(ret) + "\n");
 
@@ -102,63 +102,57 @@ String registering_payload_encode() {
 }
 
 
-void registering() {
-      // Create the body
-      body = registering_payload_encode();
+int registering() {
+    Serial.println("[DEBUG] POST request: registering...");
+    // Create the body
+    body = registering_payload_encode();
 
-      // Send the request
-      client.beginRequest();
-      client.post("/devices/subscription");
+    // Send the request
+    client.beginRequest();
+    client.post("/devices/subscription");
 
-      /* 
-      * change session_id in the cookie header according to postman session_id, it will be
-      * automatically reassigned at the first request it makes
-      * 
-      * we use postman session_id so that with a GET request from postman we can see the
-      * log, otherwise, the requests of the Arduino will be saved in another log session
-      * used just for Arduino
-      *
-      * using the same session_id, although it is probably a very bad practice, allows us
-      * to have no issue in visualizing the log
-      */
-      // client.sendHeader("Cookie", "session_id=629edc8b148df01e95e953b8641c53fc3c6959f4"); -> session not used
-      client.sendHeader("Content-Type", "application/json");
-      client.sendHeader("Content-Length", body.length());
-      client.beginBody();
-      client.print(body);
-      client.endRequest();
-    
-      int ret = client.responseStatusCode();
-      Serial.print("[DEBUG] "); Serial.println(ret);
+    /* 
+    * change session_id in the cookie header according to postman session_id, it will be
+    * automatically reassigned at the first request it makes
+    * 
+    * we use postman session_id so that with a GET request from postman we can see the
+    * log, otherwise, the requests of the Arduino will be saved in another log session
+    * used just for Arduino
+    *
+    * using the same session_id, although it is probably a very bad practice, allows us
+    * to have no issue in visualizing the log
+    */
+    // client.sendHeader("Cookie", "session_id=629edc8b148df01e95e953b8641c53fc3c6959f4"); -> session not used
+    client.sendHeader("Content-Type", "application/json");
+    client.sendHeader("Content-Length", body.length());
+    client.beginBody();
+    client.print(body);
+    client.endRequest();
+  
+    int ret = client.responseStatusCode();
+    Serial.print("[DEBUG] POST request response code: "); Serial.println(ret);
+    Serial.println();
+
+    return ret;
 }
 
 
-void updating() {
-      // Create the body
-      body = registering_payload_encode();
+void refreshing(uint alarm_num) {
+    TIMER_ISR_START(alarm_num);
+    Serial.println("[DEBUG] PUT request: updating...");
 
-      // Send the request
-      client.beginRequest();
-      client.post("/devices/subscription");
+    // Create the body
+    body = registering_payload_encode();
 
-      /* 
-      * change session_id in the cookie header according to postman session_id, it will be
-      * automatically reassigned at the first request it makes
-      * 
-      * we use postman session_id so that with a GET request from postman we can see the
-      * log, otherwise, the requests of the Arduino will be saved in another log session
-      * used just for Arduino
-      *
-      * using the same session_id, although it is probably a very bad practice, allows us
-      * to have no issue in visualizing the log
-      */
-      // client.sendHeader("Cookie", "session_id=629edc8b148df01e95e953b8641c53fc3c6959f4"); -> session not used
-      client.sendHeader("Content-Type", "application/json");
-      client.sendHeader("Content-Length", body.length());
-      client.beginBody();
-      client.print(body);
-      client.endRequest();
-    
-      int ret = client.responseStatusCode();
-      Serial.print("[DEBUG] "); Serial.println(ret);
+    String content_type = "application/json";
+
+    // Send the request
+    client.beginRequest();
+    client.put("/devices/refresh", content_type, body);
+  
+    int ret = client.responseStatusCode();
+    Serial.print("[DEBUG] PUT request response code: "); Serial.println(ret);
+    Serial.println();
+
+    TIMER_ISR_END(alarm_num);
 }
