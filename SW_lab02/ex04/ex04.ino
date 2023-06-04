@@ -121,14 +121,44 @@ void registering() {
       * using the same session_id, although it is probably a very bad practice, allows us
       * to have no issue in visualizing the log
       */
-      client.sendHeader("Cookie", "session_id=629edc8b148df01e95e953b8641c53fc3c6959f4");
+      // client.sendHeader("Cookie", "session_id=629edc8b148df01e95e953b8641c53fc3c6959f4"); -> session not used
       client.sendHeader("Content-Type", "application/json");
       client.sendHeader("Content-Length", body.length());
-      client.sendHeader("Accept", "*/*");
-      client.sendHeader("Accept-Encoding", "gzip, deflate, br");
-      client.sendHeader("Connection", "keep-alive");
       client.beginBody();
       client.print(body);
       client.endRequest();
+    
       int ret = client.responseStatusCode();
+      Serial.print("[DEBUG] "); Serial.println(ret);
+}
+
+
+void updating() {
+      // Create the body
+      body = registering_payload_encode();
+
+      // Send the request
+      client.beginRequest();
+      client.post("/devices/subscription");
+
+      /* 
+      * change session_id in the cookie header according to postman session_id, it will be
+      * automatically reassigned at the first request it makes
+      * 
+      * we use postman session_id so that with a GET request from postman we can see the
+      * log, otherwise, the requests of the Arduino will be saved in another log session
+      * used just for Arduino
+      *
+      * using the same session_id, although it is probably a very bad practice, allows us
+      * to have no issue in visualizing the log
+      */
+      // client.sendHeader("Cookie", "session_id=629edc8b148df01e95e953b8641c53fc3c6959f4"); -> session not used
+      client.sendHeader("Content-Type", "application/json");
+      client.sendHeader("Content-Length", body.length());
+      client.beginBody();
+      client.print(body);
+      client.endRequest();
+    
+      int ret = client.responseStatusCode();
+      Serial.print("[DEBUG] "); Serial.println(ret);
 }

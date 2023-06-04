@@ -6,11 +6,7 @@ import Device
 REFRESH_TIME = 60
 
 
-def insert_dev() -> Device:
-    print("Insert a new device")
-    
-    tmp_device_id = input("Insert the device id: ")
-
+def _values_gathering(id) -> Device:
     rest_ep_list = list()
     rest_ep_n = int(input("How many REST endpoints does the device have? "))
     for i in range(0, rest_ep_n, 1):
@@ -30,13 +26,25 @@ def insert_dev() -> Device:
         resrc_list.append({"name": tmp_device_resource})
 
     tmp_device = Device(
-        tmp_device_id,
+        id,
         rest_ep_list,
         mqtt_ep_list,
         resrc_list
     )
-    
+
     return tmp_device
+
+
+def insert_dev() -> Device:
+    print("Insert a new device")
+    
+    tmp_device_id = input("Insert the device id: ")
+
+    return _values_gathering(tmp_device_id)
+
+
+def update_dev(id) -> Device:
+    return _values_gathering(id)
 
 
 def refresh(device: Device):
@@ -54,7 +62,15 @@ def main():
         if sel == 'y':
             device = insert_dev()
         elif sel == 'n':
-            continue
+            sel = input("Would you like to update the previously inserted values? (y / n)")
+            
+            if sel == 'y':
+                print("Update the device (re-insert every field)")
+                device = update_dev(device.device_id)
+            elif sel == 'n':
+                continue
+            else:
+                print("Wrong character selected. Use 'y' for 'yes' and 'n' for 'no'.")
         else:
             print("Wrong character selected. Use 'y' for 'yes' and 'n' for 'no'.")
 
