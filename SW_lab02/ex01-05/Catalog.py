@@ -386,12 +386,13 @@ class Catalog():
     def insert_end_points(self, type, item_id, end_points_dict):
         try:
             for protocol in end_points_dict:
-                for end_point in end_points_dict[protocol]:
-                    query = f"""
-                            INSERT INTO {type}_end_points({type}_id, end_point, protocol)
-                            VALUES('{item_id}', '{end_point["value"]}', '{protocol}');
-                            """
-                    self.execute_query(query)
+                for method in end_points_dict[protocol]:
+                    for end_point in end_points_dict[protocol][method]:
+                        query = f"""
+                                INSERT INTO {type}_end_points({type}_id, end_point, protocol, method)
+                                VALUES('{item_id}', '{end_point["value"]}', '{protocol}', '{method}');
+                                """
+                        self.execute_query(query)
         
         except KeyError as exc:
             raise cherrypy.HTTPError(400, f"Missing or wrong key in JSON file: {exc}")
@@ -476,7 +477,7 @@ class Catalog():
     def get_end_points(self, type, item_id):
         res_dict = {}
         query = f"""
-                SELECT end_point, protocol
+                SELECT end_point, protocol, method
                 FROM {type}_end_points
                 WHERE {type}_id = '{item_id}';
                 """
@@ -485,10 +486,14 @@ class Catalog():
         for row in result:
             end_point = row[0]
             protocol = row[1]
+            method = row[2]
             
             if protocol not in res_dict:
-                res_dict[protocol] = []
-            res_dict[protocol].append({"value": end_point})
+                res_dict[protocol] = {}
+            if method not in res_dict[protocol]:
+                res_dict[protocol][method] = []
+                
+            res_dict[protocol][method].append({"value": end_point})
 
         return res_dict
 
