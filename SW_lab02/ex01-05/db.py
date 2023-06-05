@@ -49,6 +49,7 @@ def main():
             device_id VARCHAR(32),
             end_point VARCHAR(200),
             protocol VARCHAR(50),
+            method VARCHAR(50),
             PRIMARY KEY(device_id, end_point, protocol),
             FOREIGN KEY(device_id) REFERENCES devices(device_id) ON DELETE CASCADE ON UPDATE CASCADE 
         );
@@ -90,7 +91,8 @@ def main():
             service_id VARCHAR(32),
             end_point VARCHAR(200),
             protocol VARCHAR(50),
-            PRIMARY KEY(service_id, end_point, protocol),
+            method VARCHAR(50),
+            PRIMARY KEY(service_id, end_point, protocol, method),
             FOREIGN KEY(service_id) REFERENCES services(service_id) ON DELETE CASCADE ON UPDATE CASCADE 
         );
         """
