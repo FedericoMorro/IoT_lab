@@ -84,10 +84,22 @@ String registering_payload_encode() {
         \"id\": \"ArduinoGroup3\",\
         \"end_points\": {\
             \"REST\": [\
-                {\"value\": \"127.0.0.1:8080/2\"}\
+                \"GET\": [\
+                    {\"value\": \"127.0.0.1:8080/0\"},\
+                    {\"value\": \"127.0.0.1:8080/1\"}
+                ],
+                \"PUT\": [
+                    {\"value\": \"127.0.0.1:8080/2\"}
+                ]
             ],\
             \"MQTT\": [\
-                {\"value\": \"IoT_lab/group3/device/arduino\"}\
+                \"subscriber\": [
+                    {\"value\": \"/IoT_lab/group3/device/0\"}
+                ],\
+                \"publisher\": [\
+                    {\"value\": \"/IoT_lab/group3/device/1\"},
+                    {\"value\": \"/IoT_lab/group3/device/2\"}
+                ]\
             ],\
         }\
         \"info\": {\
