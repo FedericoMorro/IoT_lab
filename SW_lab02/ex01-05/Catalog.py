@@ -16,13 +16,13 @@ class Catalog():
     exposed = True
 
     def __init__(self):
-        self._max_timestamp = 120 * 60
-        self._delay_check_timestamp_minutes = 60
+        self._max_timestamp = 120
+        self._delay_check_timestamp = 60
 
-        self.db_name = DB_NAME
+        self._db_name = DB_NAME
 
         self._client_id = "IoT_lab_group3_Catalog"
-        self._broker_hostname = "iot.eclipse.org"
+        self._broker_hostname = "test.mosquitto.org"
         self._broker_port = 1883
         self._base_topic = "/IoT_lab/group3/catalog"
 
@@ -34,8 +34,8 @@ class Catalog():
         self._subscribed_topics = []
         for item in ["devices", "services", "users"]:
             for operation in ["subscription", "refresh"]:
-                self._subscribed_topics.append(f"{self._base_topic}/{item}/{operation}")
-        self._mqtt_client.subscribe(self._subscribed_topics, qos=2)
+                self._subscribed_topics.append((f"{self._base_topic}/{item}/{operation}", 2))
+        self._mqtt_client.subscribe(self._subscribed_topics)
 
         self._thread = threading.Thread(target=self.callback_delete_old)
         self._thread.start()
@@ -51,19 +51,21 @@ class Catalog():
 
 
     def callback_delete_old(self):
-        timestamp = int(time.time())
-        
-        for type in ["device", "service"]:
-            items_list = self.get_all_items(type)
 
-            for item in items_list:
-                item_id = item[0]
+        while True:
+            timestamp = int(time.time())
+            
+            for type in ["device", "service"]:
+                items_list = self.get_all_items(type)
 
-                item_timestamp = self.get_timestamp(type, item_id)
-                if (timestamp - item_timestamp) > self._max_timestamp:
-                    self.delete_item(type, item_id)
-        
-        time.sleep(self._delay_check_timestamp_minutes)
+                for item in items_list:
+                    item_id = item[0]
+
+                    item_timestamp = self.get_timestamp(type, item_id)
+                    if (timestamp - item_timestamp) > self._max_timestamp:
+                        self.delete_item(type, item_id)
+            
+            time.sleep(self._delay_check_timestamp)
 
 
 
@@ -492,7 +494,7 @@ class Catalog():
                 res_dict[protocol] = {}
             if method not in res_dict[protocol]:
                 res_dict[protocol][method] = []
-                
+
             res_dict[protocol][method].append({"value": end_point})
 
         return res_dict
@@ -507,7 +509,7 @@ class Catalog():
                 """
         result = self.execute_query(query, is_select=True)
 
-        return result[0]
+        return result[0][0]
     
 
     def update_timestamp(self, type, item_id, timestamp):
