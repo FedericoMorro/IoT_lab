@@ -6,18 +6,40 @@ import Device
 REFRESH_TIME = 60
 
 
-def _values_gathering(id) -> Device:
-    rest_ep_list = list()
-    rest_ep_n = int(input("How many REST endpoints does the device have? "))
-    for i in range(0, rest_ep_n, 1):
-        tmp_device_rest_ep = input("Insert the REST device endpoint: ")
-        rest_ep_list.append({"value": tmp_device_rest_ep})
+def _rest_endpoints_gathering(type: str) -> list:
+    tmp_rest_ep_n = int(input(f"How many REST {type} endpoints does the device have? "))
+    tmp_rest_ep_list = list()
 
-    mqtt_ep_list = list()
-    mqtt_ep_n = int(input("How many MQTT endpoints does the device have? "))
-    for i in range(0, mqtt_ep_n, 1):
-        tmp_device_mqtt_ep = input("Insert the MQTT device endpoint: ")
-        mqtt_ep_list.append({"value": tmp_device_mqtt_ep})
+    for i in range(0, tmp_rest_ep_n, 1):
+        tmp_device_rest_ep = input(f"Insert the REST {type} device endpoint: ")
+        tmp_rest_ep_list.append({"value": tmp_device_rest_ep})
+
+    return tmp_rest_ep_list
+
+
+def _mqtt_endpoints_gathering(type: str) -> list:
+    tmp_mqtt_ep_n = int(input(f"How many MQTT {type} endpoints does the device have? "))
+    tmp_mqtt_ep_list = list()
+
+    for i in range(0, tmp_mqtt_ep_n, 1):
+        tmp_device_mqtt_ep = input(f"Insert the MQTT {type} device endpoint: ")
+        tmp_mqtt_ep_list.append({"value": tmp_device_mqtt_ep})
+
+    return tmp_mqtt_ep_list
+
+
+def _values_gathering(id) -> Device:
+    rest_eps = {
+        "GET": _rest_endpoints_gathering("GET"),
+        "POST": _rest_endpoints_gathering("POST"),
+        "PUT": _rest_endpoints_gathering("PUT"),
+        "DELETE": _rest_endpoints_gathering("DELETE")
+    }
+
+    mqtt_eps = {
+        "subscriber": _mqtt_endpoints_gathering("subscriber"),
+        "publisher": _mqtt_endpoints_gathering("publisher")
+    }
 
     resrc_list = list()
     resrc_n = int(input("How many types of resources type does the device have? "))
@@ -27,8 +49,8 @@ def _values_gathering(id) -> Device:
 
     tmp_device = Device(
         id,
-        rest_ep_list,
-        mqtt_ep_list,
+        rest_eps,
+        mqtt_eps,
         resrc_list
     )
 
