@@ -26,10 +26,12 @@ class Catalog():
         self._broker_port = 1883
         self._base_topic = "/IoT_lab/group3/catalog"
 
+        # Initialize MQTT
         self._mqtt_client = PahoMQTT.Client(self._client_id, clean_session=False)
         self._mqtt_client.on_message = self.callback_on_MQTT_message
 
         self._mqtt_client.connect(self._broker_hostname, self._broker_port)
+        self._mqtt_client.loop_start()
 
         self._subscribed_topics = []
         for item in ["devices", "services", "users"]:
@@ -37,6 +39,7 @@ class Catalog():
                 self._subscribed_topics.append((f"{self._base_topic}/{item}/{operation}", 2))
         self._mqtt_client.subscribe(self._subscribed_topics)
 
+        # Initialize thread
         self._thread = threading.Thread(target=self.callback_delete_old)
         self._thread.start()
 
@@ -74,10 +77,19 @@ class Catalog():
         try:
             input_str = msg.payload.decode("utf-8")     # to convert from bytes to text, otherwise payload is like "b'text"
             input_dict = json.loads(input_str)
+
         except ValueError as exc:
-            raise cherrypy.HTTPError(400, f"Error in input JSON to dictionary conversion: {exc}")
+            self._mqtt_client.publish(
+                topic= f"{self._base_topic}/{type}s/{input_dict['id']}",
+                payload= f"Error in input JSON to dictionary conversion: {exc}",
+                qos= 2
+            )
         except Exception as exc:
-            raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
+            self._mqtt_client.publish(
+                topic= f"{self._base_topic}/{type}s/{input_dict['id']}",
+                payload= f"An exception occurred: {exc}",
+                qos= 2
+            )
         
         # Check topic
         topic_elem = msg.topic.split("/")

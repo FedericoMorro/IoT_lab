@@ -2,6 +2,8 @@
 #include <ArduinoHttpClient.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
+#include <Scheduler.h>
+
 #include "arduino_secrets.h"
 
 
@@ -20,6 +22,9 @@ double temperature;
 // Led
 uint8_t led_state;
 
+// Id
+char device_id[] = "IoT_lab_group3_Arduino";
+
 // WiFi
 char ssid[] = SECRET_SSID;
 char pass[] = SECRET_PASS;
@@ -36,8 +41,12 @@ String broker_address;
 int broker_port;
 
 // MQTT
-const String base_topic = "/IoT_lab/group3";
+const String base_topic = "/IoT_lab/group3/Arduino";
 String body;
+
+// PubSub client
+PubSubClient mqtt_client;
+//PubSubClient client(broker_address.c_str(), broker_port, callback, wifi);
 
 // Json
 const int capacity_sen_ml = JSON_OBJECT_SIZE(2) + JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(4) + 100;
@@ -46,6 +55,10 @@ DynamicJsonDocument doc_rec_sen_ml(capacity_sen_ml);
 
 const int capacity_cat_broker = JSON_OBJECT_SIZE(2) + 100;
 DynamicJsonDocument doc_rec_cat_broker(capacity_cat_broker);
+
+const int capacity_cat_subscription = JSON_OBJECT_SIZE(6) + JSON_ARRAY_SIZE(2) + JSON_OBJECT_SIZE(4) + 200;
+DynamicJsonDocument doc_snd_cat_sub(capacity_cat_subscription);
+
 
 // Callback definition
 void callback(char *topic, byte *payload, unsigned int length) {
@@ -67,14 +80,11 @@ void callback(char *topic, byte *payload, unsigned int length) {
     }
 }
 
-// PubSub client
-PubSubClient mqtt_client;
-//PubSubClient client(broker_address.c_str(), broker_port, callback, wifi);
-
 
 // Function prototypes
 void get_mqtt_broker();
 void mqtt_reconnect();
+void loop_refresh_catalog_subscription();
 String sen_ml_encode(String dev, float val, String unit);
 
 
@@ -99,6 +109,9 @@ void setup() {
     // Create mqtt client
     get_mqtt_broker();
     mqtt_client = PubSubClient(broker_address.c_str(), broker_port, callback, wifi);
+
+    // Initialize scheduler task
+    Scheduler.startLoop(loop_refresh_catalog_subscription);
 }
 
 
@@ -154,7 +167,7 @@ void get_mqtt_broker() {
 void mqtt_reconnect() {
     // Loop until connected
     while (mqtt_client.state() != MQTT_CONNECTED) {
-        if (mqtt_client.connect("TiotGroup3")) {     // unique client id
+        if (mqtt_client.connect(device_id)) {     // unique client id
             // Subscribe to led topic
             mqtt_client.subscribe((base_topic + String("/led")).c_str());
         }
@@ -168,11 +181,31 @@ void mqtt_reconnect() {
 }
 
 
+void loop_refresh_catalog_subscription() {
+    String output;
+
+    if (mqtt_client.state() != MQTT_CONNECTED) {
+        mqtt_reconnect();
+    }
+
+    doc_snd_cat_sub.clear();
+    doc_snd_cat_sub["id"] = device_id;
+    doc_snd_cat_sub["end_points"]["MQTT"]["publisher"][0]["value"] = (base_topic + String("/temperature")).c_str();
+    doc_snd_cat_sub["end_points"]["MQTT"]["subscriber"][0]["value"] = (base_topic + String("/led")).c_str();
+    doc_snd_cat_sub["info"]["resources"][0]["name"] = "pub/temperature";
+    doc_snd_cat_sub["info"]["resources"][1]["name"] = "sub/led";
+
+    serializeJson(doc_snd_sen_ml, output);
+
+    delay(60000);
+}
+
+
 String sen_ml_encode(String dev, float val, String unit) {
     String output;
 
     doc_snd_sen_ml.clear();
-    doc_snd_sen_ml["bn"] = "ArduinoGroup3";
+    doc_snd_sen_ml["bn"] = device_id;
     doc_snd_sen_ml["e"][0]["n"] = dev;
     doc_snd_sen_ml["e"][0]["t"] = int(millis()/1000);
     doc_snd_sen_ml["e"][0]["v"] = val;
