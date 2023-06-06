@@ -5,6 +5,9 @@ import json
 import time
 import threading
 
+
+CATALOG_IP_ADDR = "192.168.210.123"
+
 DB_NAME = "db_catalog.db"
 DB_TABLES = ["devices", "device_end_points", "device_resources",
              "users", "user_emails",
@@ -29,6 +32,7 @@ class Catalog():
         # Initialize MQTT
         self._mqtt_client = PahoMQTT.Client(self._client_id, clean_session=False)
         self._mqtt_client.on_message = self.callback_on_MQTT_message
+        self._mqtt_client.on_connect = self.callback_on_MQTT_connect
 
         self._mqtt_client.connect(self._broker_hostname, self._broker_port)
         self._mqtt_client.loop_start()
@@ -50,6 +54,11 @@ class Catalog():
         self._mqtt_client.disconnect()
 
         self._thread.join()
+
+
+    
+    def callback_on_MQTT_connect(self, client, userdata, flags, rc):
+        print(f"Connected to MQTT broker")
 
 
 
@@ -650,7 +659,7 @@ if __name__=='__main__':
     
     cherrypy.tree.mount(Catalog(), '/', conf)
 
-    cherrypy.config.update({'server.socket_host': '127.0.0.1'})
+    cherrypy.config.update({'server.socket_host': CATALOG_IP_ADDR})
     cherrypy.config.update({'server.socket_port': 8080})
 
     cherrypy.engine.start()

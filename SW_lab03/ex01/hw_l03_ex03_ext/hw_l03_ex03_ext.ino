@@ -32,7 +32,7 @@ int status = WL_IDLE_STATUS;
 WiFiClient wifi;
 
 // Catalog
-char catalog_address[] = "192.168.255.123";    // to be modified
+char catalog_address[] = "192.168.210.123";    // to be modified
 int catalog_port = 8080;
 HttpClient http_client = HttpClient(wifi, catalog_address, catalog_port);
 const String catalog_base_topic = "/IoT_lab/group3/catalog/devices";
@@ -46,10 +46,6 @@ const String base_topic = "/IoT_lab/group3/Arduino";
 String body;
 bool first_sub = true;
 
-// PubSub client
-PubSubClient mqtt_client;
-//PubSubClient client(broker_address.c_str(), broker_port, callback, wifi);
-
 // Json
 const int capacity_sen_ml = JSON_OBJECT_SIZE(2) + JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(4) + 100;
 DynamicJsonDocument doc_snd_sen_ml(capacity_sen_ml);
@@ -58,8 +54,17 @@ DynamicJsonDocument doc_rec_sen_ml(capacity_sen_ml);
 const int capacity_cat = JSON_OBJECT_SIZE(2) + 100;
 DynamicJsonDocument doc_rec_cat(capacity_cat);
 
-const int capacity_cat_subscription = JSON_OBJECT_SIZE(6) + JSON_ARRAY_SIZE(2) + JSON_OBJECT_SIZE(4) + 200;
+const int capacity_cat_subscription = JSON_OBJECT_SIZE(6) + JSON_ARRAY_SIZE(2) + JSON_OBJECT_SIZE(4) + 2000;
 DynamicJsonDocument doc_snd_cat_sub(capacity_cat_subscription);
+
+
+// Function prototypes
+void get_mqtt_broker();
+void mqtt_reconnect();
+void loop_refresh_catalog_subscription();
+void refresh_catalog_subscription();
+void check_mqtt_msg();
+String sen_ml_encode(String dev, float val, String unit);
 
 
 // Callback definition
@@ -74,6 +79,7 @@ void callback(char *topic, byte *payload, unsigned int length) {
         }
 
         if (doc_rec_cat["err"] == 0) {
+            Serial.println("[DEBUG] Refreshed subscribtion to Catalog");
             return;
         } else {
             refresh_catalog_subscription();
@@ -99,14 +105,9 @@ void callback(char *topic, byte *payload, unsigned int length) {
     }   
 }
 
-
-// Function prototypes
-void get_mqtt_broker();
-void mqtt_reconnect();
-void loop_refresh_catalog_subscription();
-void refresh_catalog_subscription();
-void check_mqtt_msg();
-String sen_ml_encode(String dev, float val, String unit);
+// PubSub client
+PubSubClient mqtt_client(wifi);
+//PubSubClient client(broker_address.c_str(), broker_port, callback, wifi);
 
 
 void setup() {
@@ -129,7 +130,8 @@ void setup() {
 
     // Create mqtt client
     get_mqtt_broker();
-    mqtt_client = PubSubClient(broker_address.c_str(), broker_port, callback, wifi);
+    mqtt_client.setServer(broker_address.c_str(), broker_port);
+    mqtt_client.setCallback(callback);
 
     // Initialize scheduler tasks
     Scheduler.startLoop(loop_refresh_catalog_subscription);
@@ -155,15 +157,22 @@ void loop() {
     // Publish temperature reading
     mqtt_client.publish((base_topic + String("/temperature")).c_str(), body.c_str());
     
-    delay(2000);
+    delay(10000);
+    yield();
 }
 
 
 void check_mqtt_msg() {
+  
+    if (mqtt_client.state() != MQTT_CONNECTED) {
+        mqtt_reconnect();
+    }
+
     // Check if there are new message on subscribed topics (-> callback)
     mqtt_client.loop();
 
-    delay(50);
+    delay(1000);
+    yield();
 }
 
 
@@ -171,13 +180,15 @@ void get_mqtt_broker() {
     int return_code = -1;
 
     while (return_code != 200) {
-        client.beginRequest();
-        client.get("/MQTTbroker");
-        client.endRequest();
-        return_code = client.responseStatusCode();
+        Serial.println("GET request...");
+
+        http_client.get("/MQTTbroker");
+        return_code = http_client.responseStatusCode();
+
+        Serial.println("Response code: " + return_code);
     }
 
-    body = client.responseBody();
+    body = http_client.responseBody();
 
     DeserializationError err = deserializeJson(doc_rec_cat, body.c_str());
 
@@ -186,8 +197,11 @@ void get_mqtt_broker() {
         Serial.println(err.c_str());
     }
 
-    broker_address = doc_rec_cat["hostname"];
+    const char *tmp = doc_rec_cat["hostname"];
+    broker_address = String(tmp);
     broker_port = doc_rec_cat["port"];
+
+    Serial.print("[DEBUG] Broker info: "); Serial.print(broker_address); Serial.print(":"); Serial.println(broker_port);
 }
 
 
@@ -214,7 +228,9 @@ void mqtt_reconnect() {
 
 void loop_refresh_catalog_subscription() {
     refresh_catalog_subscription();
-    delay(60000);
+    delay(2000);
+
+    yield();
 }
 
 
@@ -239,8 +255,10 @@ void refresh_catalog_subscription() {
     if (first_sub) {
         mqtt_client.publish((catalog_base_topic + String("subscription")).c_str(), output.c_str());
         first_sub = false;
+        Serial.println("[DEBUG] Try subscribtion to Catalog");
     } else {
         mqtt_client.publish((catalog_base_topic + String("refresh")).c_str(), output.c_str());
+        Serial.println("[DEBUG] Try refresh to Catalog");
     }
 
     // Check if there are new message on subscribed topics (-> callback)
