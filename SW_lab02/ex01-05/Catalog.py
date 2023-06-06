@@ -54,7 +54,7 @@ class Catalog():
 
 
     def callback_delete_old(self):
-        print_err_handler = ErrorHandler()
+        print_err_handler = self.ErrorHandler()
 
         # Delete devices with timestamp higher than _max_timestamp
         while True:
@@ -94,7 +94,7 @@ class Catalog():
             return
         
         # Cannot be defined before, since the topic is unknown
-        mqtt_err_handler = MqttErrorHandler(
+        mqtt_err_handler = self.MqttErrorHandler(
             topic= f"{self._base_topic}/{type}s/{input_dict['id']}",
             mqtt_client= self._mqtt_client
         )
@@ -125,7 +125,7 @@ class Catalog():
 
 
     def GET(self, *uri, **params):      # retrieve
-        rest_err_handler = RestErrorHandler()
+        rest_err_handler = self.RestErrorHandler()
 
         # Give possibility to ask for MQTT broker
         if (len(uri) == 1 and uri[0] == "MQTTbroker"):
@@ -151,7 +151,7 @@ class Catalog():
 
 
     def POST(self, *uri, **params):     # create
-        rest_err_handler = RestErrorHandler()
+        rest_err_handler = self.RestErrorHandler()
 
         # Check path correctness
         if not (len(uri) == 2 and uri[0] in ["devices", "users", "services"] and uri[1] == "subscription"):
@@ -182,7 +182,7 @@ class Catalog():
 
 
     def PUT(self, *uri, **params):      # update
-        rest_err_handler = RestErrorHandler()
+        rest_err_handler = self.RestErrorHandler()
 
         # Check path correctness
         if not (len(uri) == 2 and uri[0] in ["devices", "services"] and uri[1] == "refresh"):
@@ -213,7 +213,7 @@ class Catalog():
 
 
     def DELETE(self, *uri, **params):   # delete
-        rest_err_handler = RestErrorHandler()
+        rest_err_handler = self.RestErrorHandler()
 
         # Check path correctness
         if not (len(uri) == 2 and uri[0] in ["devices", "users", "services"]):
@@ -611,29 +611,31 @@ class Catalog():
     
 
 
-class ErrorHandler():
-    
-    def notify(self, param, msg):
-        print(f"ERROR: an error occured: {msg}")
-    
+    class ErrorHandler():
+        
+        def notify(self, param, msg):
+            print(f"ERROR: an error occured: [{param}] {msg}")
+        
 
-class MqttErrorHandler(ErrorHandler):
-    def __init__(self, topic, mqtt_client):
-        self._topic = topic
-        self._mqtt_client = mqtt_client
+    class MqttErrorHandler(ErrorHandler):
+        def __init__(self, topic, mqtt_client):
+            self._topic = topic
+            self._mqtt_client = mqtt_client
 
-    def notify(self, param, msg):
-        self._mqtt_client.publish(
-            topic= self._topic,
-            payload= json.dumps({"err": 1, "msg": f"{msg}"}),
-            qos= 2
-        )
+        def notify(self, param, msg):
+            super().notify(param, msg)
+            self._mqtt_client.publish(
+                topic= self._topic,
+                payload= json.dumps({"err": 1, "msg": f"{msg}"}),
+                qos= 2
+            )
 
 
-class RestErrorHandler(ErrorHandler):
-    
-    def notify(self, param, msg):
-        cherrypy.HTTPError(param, msg)
+    class RestErrorHandler(ErrorHandler):
+        
+        def notify(self, param, msg):
+            super().notify(param, msg)
+            raise cherrypy.HTTPError(param, msg)
 
 
 
