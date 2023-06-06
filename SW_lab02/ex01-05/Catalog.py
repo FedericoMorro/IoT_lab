@@ -81,13 +81,13 @@ class Catalog():
         except ValueError as exc:
             self._mqtt_client.publish(
                 topic= f"{self._base_topic}/{type}s/{input_dict['id']}",
-                payload= f"Error in input JSON to dictionary conversion: {exc}",
+                payload= self.json_dict_to_str({"err": 1, "msg": f"Error in input JSON to dictionary conversion: {exc}"}),
                 qos= 2
             )
         except Exception as exc:
             self._mqtt_client.publish(
                 topic= f"{self._base_topic}/{type}s/{input_dict['id']}",
-                payload= f"An exception occurred: {exc}",
+                payload= self.json_dict_to_str({"err": 1, "msg": f"An exception occurred: {exc}"}),
                 qos= 2
             )
         
@@ -113,7 +113,7 @@ class Catalog():
         # Publish response message
         self._mqtt_client.publish(
             topic= f"{self._base_topic}/{type}s/{input_dict['id']}",
-            payload= f"Operation on {type}:{input_dict['id']} correctly performed",
+            payload= self.json_dict_to_str({"err": 0}),
             qos= 2
         )
 

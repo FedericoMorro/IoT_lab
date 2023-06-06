@@ -35,6 +35,7 @@ WiFiClient wifi;
 char catalog_address[] = "192.168.255.123";    // to be modified
 int catalog_port = 8080;
 HttpClient http_client = HttpClient(wifi, catalog_address, catalog_port);
+const String catalog_base_topic = "/IoT_lab/group3/catalog/devices";
 
 // Broker
 String broker_address;
@@ -43,6 +44,7 @@ int broker_port;
 // MQTT
 const String base_topic = "/IoT_lab/group3/Arduino";
 String body;
+bool first_sub = true;
 
 // PubSub client
 PubSubClient mqtt_client;
@@ -170,6 +172,8 @@ void mqtt_reconnect() {
         if (mqtt_client.connect(device_id)) {     // unique client id
             // Subscribe to led topic
             mqtt_client.subscribe((base_topic + String("/led")).c_str());
+
+            // Subscribe to catalog to get response
         }
         else {
             Serial.print("failed, rc=");
@@ -188,6 +192,7 @@ void loop_refresh_catalog_subscription() {
         mqtt_reconnect();
     }
 
+    // Create body
     doc_snd_cat_sub.clear();
     doc_snd_cat_sub["id"] = device_id;
     doc_snd_cat_sub["end_points"]["MQTT"]["publisher"][0]["value"] = (base_topic + String("/temperature")).c_str();
@@ -196,6 +201,14 @@ void loop_refresh_catalog_subscription() {
     doc_snd_cat_sub["info"]["resources"][1]["name"] = "sub/led";
 
     serializeJson(doc_snd_sen_ml, output);
+
+    // Publish the subscription
+    if (first_sub) {
+        mqtt_client.publish((catalog_base_topic + String("subscription")).c_str(), output.c_str());
+        first_sub = false;
+    } else {
+        mqtt_client.publish((catalog_base_topic + String("refresh")).c_str(), output.c_str());
+    }
 
     delay(60000);
 }

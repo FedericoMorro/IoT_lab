@@ -1,3 +1,5 @@
+# Subscribe and refresh
+
 ## Device JSON
 ```JSON
 {
@@ -77,3 +79,21 @@
     }
 }
 ```
+
+
+
+# MQTT response
+
+```JSON
+{
+    "err": 0/1
+    "msg": "error_message"
+}
+```
+
+
+
+# REST response
+No need of a JSON file
+- On failure an HTTP error is raised
+- On success the code 200 is returned + a confirmation string
