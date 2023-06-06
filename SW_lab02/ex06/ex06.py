@@ -1,5 +1,4 @@
 import MQTT_Device
-from time import time
 from threading import Thread
 
 def _rest_endpoints_gathering(type: str) -> list:
