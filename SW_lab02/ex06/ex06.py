@@ -1,10 +1,4 @@
-import time
-from threading import Thread
-import Device
-
-
-REFRESH_TIME = 60
-
+import MQTT_Device
 
 def _rest_endpoints_gathering(type: str) -> list:
     tmp_rest_ep_n = int(input(f"How many REST {type} endpoints does the device have? "))
@@ -28,7 +22,7 @@ def _mqtt_endpoints_gathering(type: str) -> list:
     return tmp_mqtt_ep_list
 
 
-def _values_gathering(id) -> Device:
+def _values_gathering(id) -> MQTT_Device:
     rest_eps = {
         "GET": _rest_endpoints_gathering("GET"),
         "POST": _rest_endpoints_gathering("POST"),
@@ -47,7 +41,7 @@ def _values_gathering(id) -> Device:
         tmp_device_resource = input("Insert the device resource type: ")
         resrc_list.append({"name": tmp_device_resource})
 
-    tmp_device = Device(
+    tmp_device = MQTT_Device(
         id,
         rest_eps,
         mqtt_eps,
@@ -56,8 +50,7 @@ def _values_gathering(id) -> Device:
 
     return tmp_device
 
-
-def insert_dev() -> Device:
+def insert_dev() -> MQTT_Device:
     print("Insert a new device")
     
     tmp_device_id = input("Insert the device id: ")
@@ -65,20 +58,12 @@ def insert_dev() -> Device:
     return _values_gathering(tmp_device_id)
 
 
-def update_dev(id) -> Device:
+def update_dev(id) -> MQTT_Device:
     return _values_gathering(id)
 
 
-def refresh(device: Device):
-    while True:
-        device.update()
-        time.sleep(REFRESH_TIME)
-
-
 def main():
-    device: Device
-    thread = Thread(target = refresh, args = (device))
-    thread.start()
+    device: MQTT_Device
 
     while True:
         sel = input("Would you like to creating a new device? (y / n): ")
