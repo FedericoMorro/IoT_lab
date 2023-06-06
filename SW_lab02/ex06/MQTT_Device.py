@@ -76,7 +76,7 @@ class MQTT_Device():
 
         self._mqtt_client.publish(
             topic = f"{self._mqtt_data['base_topic']}/devices/subscription",
-            payload = f"{self._generate_payload()}",
+            payload = f"{json.dumps(self._generate_payload())}",
             qos = 2
         )
 
@@ -85,6 +85,6 @@ class MQTT_Device():
 
             self._mqtt_client.publish(
                 topic = f"{self._mqtt_data['base_topic']}/devices/refresh",
-                payload = f"{self._generate_payload()}",
+                payload = f"{json.dumps(self._generate_payload())}",
                 qos = 2
             )
