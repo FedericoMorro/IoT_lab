@@ -1,5 +1,4 @@
 import MQTT_Device
-from threading import Thread
 
 def _rest_endpoints_gathering(type: str) -> list:
     tmp_rest_ep_n = int(input(f"How many REST {type} endpoints does the device have? "))
