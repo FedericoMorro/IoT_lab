@@ -1,9 +1,4 @@
-import time
-from threading import Thread
-import Device
-
-
-REFRESH_TIME = 60
+from Device import Device
 
 
 def _rest_endpoints_gathering(type: str) -> list:
@@ -69,16 +64,8 @@ def update_dev(id) -> Device:
     return _values_gathering(id)
 
 
-def refresh(device: Device):
-    while True:
-        device.update()
-        time.sleep(REFRESH_TIME)
-
-
 def main():
     device: Device
-    thread = Thread(target = refresh, args = (device))
-    thread.start()
 
     while True:
         sel = input("Would you like to creating a new device? (y / n): ")

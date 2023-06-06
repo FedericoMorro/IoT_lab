@@ -1,8 +1,12 @@
 import requests
 import json
+import time
+from threading import Thread
 
 ip_addr = "127.0.0.1"
 port = 8080
+
+REFRESH_TIME = 60
 
 class Device():
     def __init__(
@@ -18,6 +22,9 @@ class Device():
         self.resources = resource
 
         self.publish()
+
+        self._thread = Thread(target= self.update)
+        self._thread.start()
 
         return
     
@@ -45,7 +52,8 @@ class Device():
 
 
     def update(self):
-        payload = self._generate_payload()
-        requests.put(f"http://{ip_addr}:{port}/devices/refresh", data = json.dumps(payload))
-
-        return
+        while True:
+            time.sleep(REFRESH_TIME)
+            
+            payload = self._generate_payload()
+            requests.put(f"http://{ip_addr}:{port}/devices/refresh", data = json.dumps(payload))

@@ -122,7 +122,7 @@ class Catalog():
     def GET(self, *uri, **params):      # retrieve
         # Give possibility to ask for MQTT broker
         if (len(uri) == 1 and uri[0] == "MQTTbroker"):
-            output_dict = {"hostname": self._mqtt_broker_hostname, "port": self._mqtt_broker_port, "base_topic": self._base_topic}
+            output_dict = {"hostname": self._broker_hostname, "port": self._broker_port, "base_topic": self._base_topic}
             return self.json_dict_to_str(output_dict)
         
         # Check path correctness
@@ -565,7 +565,7 @@ class Catalog():
             output = cursor.fetchall()
         else:
             output = cursor.rowcount
-            if output <= 0:
+            if output < 0:
                 raise cherrypy.HTTPError(500, f"Error in database transaction\nQuery:\n{query}")
 
         cursor.close()

@@ -33,7 +33,7 @@ class MQTT_Device():
         self._mqtt_client.connect(self._mqtt_data["hostname"], self._mqtt_data["port"])
         self._mqtt_client.loop_start()
 
-        self._thread = Thread(target = self._subscribe)
+        self._thread = Thread(target = self.subscribe)
         self._thread.start()
 
         return
@@ -47,12 +47,12 @@ class MQTT_Device():
         self._thread.join()
 
 
-    def _callback_on_MQTT_message():
+    def _callback_on_MQTT_message(self):
         pass
     
 
-    def _mqtt_init():
-        r = req.get(f"{ip_addr}:{port}/MQTTbroker")
+    def _mqtt_init(self):
+        r = req.get(f"http://{ip_addr}:{port}/MQTTbroker")
         return json.loads(r.text)
     
 
@@ -72,15 +72,19 @@ class MQTT_Device():
 
 
     def subscribe(self):
-        self._subscribed_topics = []
-        self._subscribed_topics.append((f"{self._mqtt_data['base_topic']}/devices/{self.device_id}", 2))
-        self._mqtt_client.subscribe(self._subscribed_topics)
+        self._mqtt_client.subscribe(f"{self._mqtt_data['base_topic']}/devices/{self.device_id}", 2)
+
+        self._mqtt_client.publish(
+            topic = f"{self._mqtt_data['base_topic']}/devices/subscription",
+            payload = f"{self._generate_payload()}",
+            qos = 2
+        )
 
         while True:
+            time.sleep(refresh_time)
+
             self._mqtt_client.publish(
-                topic = f"{self._mqtt_data['base_topic']}/devices/{self.device_id}",
+                topic = f"{self._mqtt_data['base_topic']}/devices/refresh",
                 payload = f"{self._generate_payload()}",
                 qos = 2
             )
-
-            time.sleep(refresh_time)

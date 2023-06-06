@@ -1,4 +1,4 @@
-import MQTT_Device
+from MQTT_Device import MQTT_Device
 
 def _rest_endpoints_gathering(type: str) -> list:
     tmp_rest_ep_n = int(input(f"How many REST {type} endpoints does the device have? "))
