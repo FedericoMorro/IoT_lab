@@ -100,7 +100,7 @@ class Catalog():
 
         # Publish response message
         self._mqtt_client.publish(
-            topic= f"{msg.topic}/{input_dict['id']}",
+            topic= f"{self._base_topic}/{type}s/{input_dict['id']}",
             payload= f"Operation on {type}:{input_dict['id']} correctly performed",
             qos= 2
         )
