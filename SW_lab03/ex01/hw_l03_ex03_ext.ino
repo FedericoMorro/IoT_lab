@@ -55,8 +55,8 @@ const int capacity_sen_ml = JSON_OBJECT_SIZE(2) + JSON_ARRAY_SIZE(1) + JSON_OBJE
 DynamicJsonDocument doc_snd_sen_ml(capacity_sen_ml);
 DynamicJsonDocument doc_rec_sen_ml(capacity_sen_ml);
 
-const int capacity_cat_broker = JSON_OBJECT_SIZE(2) + 100;
-DynamicJsonDocument doc_rec_cat_broker(capacity_cat_broker);
+const int capacity_cat = JSON_OBJECT_SIZE(2) + 100;
+DynamicJsonDocument doc_rec_cat(capacity_cat);
 
 const int capacity_cat_subscription = JSON_OBJECT_SIZE(6) + JSON_ARRAY_SIZE(2) + JSON_OBJECT_SIZE(4) + 200;
 DynamicJsonDocument doc_snd_cat_sub(capacity_cat_subscription);
@@ -64,22 +64,39 @@ DynamicJsonDocument doc_snd_cat_sub(capacity_cat_subscription);
 
 // Callback definition
 void callback(char *topic, byte *payload, unsigned int length) {
-    
-    DeserializationError err = deserializeJson(doc_rec_sen_ml, (char *) payload);
 
-    if (err) {
-        Serial.print("deserializeJson() failed with code: ");
-        Serial.println(err.c_str());
-    }
+    if (topic == (catalog_base_topic + String(device_id)).c_str()) {
+        DeserializationError err = deserializeJson(doc_rec_cat, (char *) payload);
 
-    if (doc_rec_sen_ml["e"][0]["n"] == "led") {
-        if (doc_rec_sen_ml["e"][0]["v"] == 1) {
-            led_state = 1;
-        } else if (doc_rec_sen_ml["e"][0]["v"] == 0) {
-            led_state = 0;
+        if (err) {
+            Serial.print("deserializeJson() failed with code: ");
+            Serial.println(err.c_str());
         }
-        digitalWrite(LED_PIN, led_state);
+
+        if (doc_rec_cat["err"] == 0) {
+            return;
+        } else {
+            refresh_catalog_subscription();
+        }
+
     }
+    else if (topic == (base_topic + String("/led")).c_str()) {
+        DeserializationError err = deserializeJson(doc_rec_sen_ml, (char *) payload);
+
+        if (err) {
+            Serial.print("deserializeJson() failed with code: ");
+            Serial.println(err.c_str());
+        }
+
+        if (doc_rec_sen_ml["e"][0]["n"] == "led") {
+            if (doc_rec_sen_ml["e"][0]["v"] == 1) {
+                led_state = 1;
+            } else if (doc_rec_sen_ml["e"][0]["v"] == 0) {
+                led_state = 0;
+            }
+            digitalWrite(LED_PIN, led_state);
+        }
+    }   
 }
 
 
@@ -87,6 +104,8 @@ void callback(char *topic, byte *payload, unsigned int length) {
 void get_mqtt_broker();
 void mqtt_reconnect();
 void loop_refresh_catalog_subscription();
+void refresh_catalog_subscription();
+void check_mqtt_msg();
 String sen_ml_encode(String dev, float val, String unit);
 
 
@@ -112,8 +131,9 @@ void setup() {
     get_mqtt_broker();
     mqtt_client = PubSubClient(broker_address.c_str(), broker_port, callback, wifi);
 
-    // Initialize scheduler task
+    // Initialize scheduler tasks
     Scheduler.startLoop(loop_refresh_catalog_subscription);
+    Scheduler.startLoop(check_mqtt_msg);
 }
 
 
@@ -135,6 +155,11 @@ void loop() {
     // Publish temperature reading
     mqtt_client.publish((base_topic + String("/temperature")).c_str(), body.c_str());
     
+    delay(2000);
+}
+
+
+void check_mqtt_msg() {
     // Check if there are new message on subscribed topics (-> callback)
     mqtt_client.loop();
 
@@ -154,15 +179,15 @@ void get_mqtt_broker() {
 
     body = client.responseBody();
 
-    DeserializationError err = deserializeJson(doc_rec_cat_broker, body.c_str());
+    DeserializationError err = deserializeJson(doc_rec_cat, body.c_str());
 
     if (err) {
         Serial.print("deserializeJson() failed with code: ");
         Serial.println(err.c_str());
     }
 
-    broker_address = doc_rec_cat_broker["hostname"];
-    broker_port = doc_rec_cat_broker["port"];
+    broker_address = doc_rec_cat["hostname"];
+    broker_port = doc_rec_cat["port"];
 }
 
 
@@ -170,10 +195,12 @@ void mqtt_reconnect() {
     // Loop until connected
     while (mqtt_client.state() != MQTT_CONNECTED) {
         if (mqtt_client.connect(device_id)) {     // unique client id
+
             // Subscribe to led topic
             mqtt_client.subscribe((base_topic + String("/led")).c_str());
 
             // Subscribe to catalog to get response
+            mqtt_client.subscribe((catalog_base_topic + String(device_id)).c_str());
         }
         else {
             Serial.print("failed, rc=");
@@ -186,6 +213,12 @@ void mqtt_reconnect() {
 
 
 void loop_refresh_catalog_subscription() {
+    refresh_catalog_subscription();
+    delay(60000);
+}
+
+
+void refresh_catalog_subscription() {
     String output;
 
     if (mqtt_client.state() != MQTT_CONNECTED) {
@@ -210,7 +243,8 @@ void loop_refresh_catalog_subscription() {
         mqtt_client.publish((catalog_base_topic + String("refresh")).c_str(), output.c_str());
     }
 
-    delay(60000);
+    // Check if there are new message on subscribed topics (-> callback)
+    mqtt_client.loop();
 }
 
 
