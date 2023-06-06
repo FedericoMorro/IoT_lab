@@ -32,17 +32,20 @@ int catalog_port = 8080;
 HttpClient http_client = HttpClient(wifi, catalog_address, catalog_port);
 
 // Broker
-String broker_address = "test.mosquitto.org";
-int broker_port = 1883;
+String broker_address;
+int broker_port;
 
 // MQTT
 const String base_topic = "/IoT_lab/group3";
 String body;
 
 // Json
-const int capacity = JSON_OBJECT_SIZE(2) + JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(4) + 100;
-DynamicJsonDocument doc_snd_sen_ml(capacity);
-DynamicJsonDocument doc_rec_sen_ml(capacity);
+const int capacity_sen_ml = JSON_OBJECT_SIZE(2) + JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(4) + 100;
+DynamicJsonDocument doc_snd_sen_ml(capacity_sen_ml);
+DynamicJsonDocument doc_rec_sen_ml(capacity_sen_ml);
+
+const int capacity_cat_broker = JSON_OBJECT_SIZE(2) + 100;
+DynamicJsonDocument doc_rec_cat_broker(capacity_cat_broker);
 
 // Callback definition
 void callback(char *topic, byte *payload, unsigned int length) {
@@ -65,13 +68,13 @@ void callback(char *topic, byte *payload, unsigned int length) {
 }
 
 // PubSub client
-PubSubClient *mqtt_client;
+PubSubClient mqtt_client;
 //PubSubClient client(broker_address.c_str(), broker_port, callback, wifi);
 
 
 // Function prototypes
 void get_mqtt_broker();
-void reconnect();
+void mqtt_reconnect();
 String sen_ml_encode(String dev, float val, String unit);
 
 
@@ -81,6 +84,7 @@ void setup() {
     pinMode(TEMPERATURE_PIN, INPUT);
     pinMode(LED_PIN, OUTPUT);
 
+    // Connect to WiFi
     while (status != WL_CONNECTED) {
         Serial.print("Attempting to connect to SSID: ");
         Serial.println(ssid);
@@ -92,14 +96,16 @@ void setup() {
     Serial.print("Connected with IP address: ");
     Serial.println(WiFi.localIP());
 
+    // Create mqtt client
     get_mqtt_broker();
+    mqtt_client = PubSubClient(broker_address.c_str(), broker_port, callback, wifi);
 }
 
 
 void loop() {
 
     if (mqtt_client.state() != MQTT_CONNECTED) {
-        reconnect();
+        mqtt_reconnect();
     }
 
     // Read temperature
@@ -132,10 +138,20 @@ void get_mqtt_broker() {
     }
 
     body = client.responseBody();
+
+    DeserializationError err = deserializeJson(doc_rec_cat_broker, body.c_str());
+
+    if (err) {
+        Serial.print("deserializeJson() failed with code: ");
+        Serial.println(err.c_str());
+    }
+
+    broker_address = doc_rec_cat_broker["hostname"];
+    broker_port = doc_rec_cat_broker["port"];
 }
 
 
-void reconnect() {
+void mqtt_reconnect() {
     // Loop until connected
     while (mqtt_client.state() != MQTT_CONNECTED) {
         if (mqtt_client.connect("TiotGroup3")) {     // unique client id

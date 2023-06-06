@@ -51,7 +51,7 @@ class Catalog():
 
 
     def callback_delete_old(self):
-
+        # Delete devices with timestamp higher than _max_timestamp
         while True:
             timestamp = int(time.time())
             
@@ -110,7 +110,7 @@ class Catalog():
     def GET(self, *uri, **params):      # retrieve
         # Give possibility to ask for MQTT broker
         if (len(uri) == 1 and uri[0] == "MQTTbroker"):
-            output_dict = {"hostname": self._mqtt_broker_hostname, "port": self._mqtt_broker_port}
+            output_dict = {"hostname": self._mqtt_broker_hostname, "port": self._mqtt_broker_port, "base_topic": self._base_topic}
             return self.json_dict_to_str(output_dict)
         
         # Check path correctness
@@ -156,7 +156,7 @@ class Catalog():
             timestamp= int(time.time())
         )
         
-        return "New item correctly stored"
+        return f"Operation on {uri[0].removesuffix('s')}:{input_dict['id']} correctly performed"
 
 
     def PUT(self, *uri, **params):      # update
@@ -184,7 +184,7 @@ class Catalog():
             timestamp= int(time.time())
         )
         
-        return "Timestamp refresh correctly executed"
+        return f"Operation on {uri[0].removesuffix('s')}:{input_dict['id']} correctly performed"
 
 
     def DELETE(self, *uri, **params):   # delete
@@ -202,7 +202,7 @@ class Catalog():
         except Exception as exc:
             raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
         
-        return "Item correctly deleted"
+        return f"Operation on {uri[0].removesuffix('s')}:{uri[1]} correctly performed"
             
 
 
