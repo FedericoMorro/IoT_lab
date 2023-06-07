@@ -67,10 +67,10 @@ class Service():
 
 
     def subscribe(self):
-        self._mqtt_client.subscribe(f"{self._mqtt_data['ep']['m']['bt']}/services/{self._service_id}", 2)
+        self._mqtt_client.subscribe(f"{self._mqtt_data['ep']['m']['bt'][0]['v']}/services/{self._service_id}", 2)
 
         self._mqtt_client.publish(
-            topic = f"{self._mqtt_data['ep']['m']['bt']}/services/sub",
+            topic = f"{self._mqtt_data['ep']['m']['bt'][0]['v']}/services/sub",
             payload = f"{json.dumps(self._payload)}",
             qos = 2
         )
@@ -79,7 +79,7 @@ class Service():
             time.sleep(refresh_time)
 
             self._mqtt_client.publish(
-                topic = f"{self._mqtt_data['ep']['m']['bt']}/services/upd",
+                topic = f"{self._mqtt_data['ep']['m']['bt'][0]['v']}/services/upd",
                 payload = f"{json.dumps(self._payload)}",
                 qos = 2
             )
@@ -129,8 +129,8 @@ class Service():
 
             input_dict = json.loads(payload)
 
-            self._broker_hostname = input_dict["ep"]["r"]["hn"]
-            self._broker_port = input_dict["ep"]["r"]["pt"]
+            self._broker_hostname = input_dict["ep"]["r"]["hn"][0]["v"]
+            self._broker_port = input_dict["ep"]["r"]["pt"][0]["v"]
 
         except KeyError as exc:
             print(f"Missing or wrong key in JSON file: {exc}")

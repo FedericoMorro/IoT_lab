@@ -1,6 +1,19 @@
 # Catalog JSON
-- types -> t
-- 
+If hn,pt or bt are specified, the other attributes are relative
+- end_points -> ep
+  - rest -> r
+    - (hostname -> hn)
+    - (port -> pt)
+    - get (read) -> r
+    - post (create) -> c
+    - put (update) -> u
+    - delete -> d
+      - value -> v
+  - mqtt -> m
+    - (base_topic -> bt)
+    - subscriber -> s
+    - publisher -> p
+      - value -> v
 ```JSON
 {
     "ep": {
@@ -150,20 +163,27 @@
 
 
 ## MQTT broker
-- rest -> r
-  - hostname -> hn
-  - port -> pt
-- mqtt -> m
-  - base_topic -> bt
+- end_points -> ep
+  - rest -> r
+    - hostname -> hn
+    - port -> pt
+  - mqtt -> m
+    - base_topic -> bt
 ```JSON
 {
     "ep": {
         "r": {
-            "hn": "127.0.0.1",
-            "pt": 8080
+            "hn": [
+                {"v": "127.0.0.1"}
+            ]
+            "pt": [
+                {"v": 8080}
+            ]
         },
         "m": {
-            "bt": "..."
+            "bt": [
+                {"v": "..."}
+            ]
         }
     }
 }

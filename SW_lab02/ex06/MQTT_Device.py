@@ -30,7 +30,7 @@ class MQTT_Device():
         self._mqtt_client = PahoMQTT.Client(self._client_id, clean_session=False)
         self._mqtt_client.on_message = self._callback_on_MQTT_message
 
-        self._mqtt_client.connect(self._mqtt_data['ep']["r"]["hn"], self._mqtt_data['ep']["r"]["pt"])
+        self._mqtt_client.connect(self._mqtt_data['ep']["r"]["hn"][0]["v"], self._mqtt_data['ep']["r"]["pt"][0]["v"])
         self._mqtt_client.loop_start()
 
         self._thread = Thread(target = self.subscribe)
@@ -72,10 +72,10 @@ class MQTT_Device():
 
 
     def subscribe(self):
-        self._mqtt_client.subscribe(f"{self._mqtt_data['ep']['m']['bt']}/devices/{self.device_id}", 2)
+        self._mqtt_client.subscribe(f"{self._mqtt_data['ep']['m']['bt'][0]['v']}/devices/{self.device_id}", 2)
 
         self._mqtt_client.publish(
-            topic = f"{self._mqtt_data['ep']['m']['bt']}/devices/sub",
+            topic = f"{self._mqtt_data['ep']['m']['bt'][0]['v']}/devices/sub",
             payload = f"{json.dumps(self._generate_payload())}",
             qos = 2
         )
@@ -84,7 +84,7 @@ class MQTT_Device():
             time.sleep(refresh_time)
 
             self._mqtt_client.publish(
-                topic = f"{self._mqtt_data['ep']['m']['bt']}/devices/upd",
+                topic = f"{self._mqtt_data['ep']['m']['bt'][0]['v']}/devices/upd",
                 payload = f"{json.dumps(self._generate_payload())}",
                 qos = 2
             )

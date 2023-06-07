@@ -7,6 +7,7 @@ import threading
 
 
 CATALOG_IP_ADDR = "127.0.0.1"
+CATALOG_PORT = 8080
 
 DB_NAME = "db_catalog.db"
 DB_TABLES = ["devices", "device_end_points", "device_resources",
@@ -146,14 +147,15 @@ class Catalog():
             output_dict = {
                 "ep": {
                     "r": {
-                        "r": [],
-                        "c": [],
-                        "u": [],
-                        "d": []
+                        "hn": [{"v": CATALOG_IP_ADDR}],
+                        "pt": [{"v": CATALOG_PORT}],
+                        "c": [{"v": "devices/sub"}, {"v": "users/sub"}, {"v": "services/sub"}],
+                        "u": [{"v": "devices/upd"}, {"v": "users/upd"}, {"v": "services/upd"}]
                     },
                     "m": {
-                        "p": [],
-                        "s": []
+                        "bt": [{"v": self._base_topic}],
+                        "s": [{"v": "devices/sub"}, {"v": "users/sub"}, {"v": "services/sub"},
+                              {"v": "devices/upd"}, {"v": "users/upd"}, {"v": "services/upd"}]
                     }
                 }
             }
@@ -161,7 +163,7 @@ class Catalog():
 
         # Give possibility to ask for MQTT broker
         if (len(uri) == 1 and uri[0] == "MQTTbroker"):
-            output_dict = {"ep": {"r": {"hn": self._broker_hostname, "pt": self._broker_port}, "m": {"bt": self._base_topic}}}
+            output_dict = {"ep": {"r": {"hn": [{"v": self._broker_hostname}], "pt": [{"v": self._broker_port}]}, "m": {"bt": [{"v": self._base_topic}]}}}
             return self.json_dict_to_str(output_dict, rest_err_handler)
         
         # Check path correctness
@@ -700,7 +702,7 @@ if __name__=='__main__':
     cherrypy.tree.mount(Catalog(), '/', conf)
 
     cherrypy.config.update({'server.socket_host': CATALOG_IP_ADDR})
-    cherrypy.config.update({'server.socket_port': 8080})
+    cherrypy.config.update({'server.socket_port': CATALOG_PORT})
 
     cherrypy.engine.start()
     cherrypy.engine.block()
