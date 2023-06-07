@@ -25,9 +25,9 @@ class Catalog():
         self._db_name = DB_NAME
 
         self._client_id = "IoT_lab_group3_Catalog"
-        self._broker_hostname = "127.0.01"
+        self._broker_hostname = "127.0.0.1"
         self._broker_port = 1883
-        self._base_topic = "/IoT_lab/group3/catalog"
+        self._base_topic = "/IoT/g03/cat"
 
         # Initialize MQTT
         self._mqtt_client = PahoMQTT.Client(self._client_id, clean_session=False)
@@ -39,7 +39,7 @@ class Catalog():
 
         self._subscribed_topics = []
         for item in ["devices", "services", "users"]:
-            for operation in ["subscription", "refresh"]:
+            for operation in ["sub", "ref"]:
                 self._subscribed_topics.append((f"{self._base_topic}/{item}/{operation}", 2))
         self._mqtt_client.subscribe(self._subscribed_topics)
 
@@ -112,14 +112,14 @@ class Catalog():
             return
 
         # Perform subscription or refresh
-        if operation == "subscription":
+        if operation == "sub":
             self.insert_item(
                 json_dict= input_dict,
                 type= type,
                 timestamp= int(time.time()),
                 err_handler= mqtt_err_handler
             )
-        elif operation == "refresh":
+        elif operation == "ref":
             self.update_item(
                 json_dict= input_dict,
                 type= type,
@@ -130,11 +130,11 @@ class Catalog():
         # Publish response message
         self._mqtt_client.publish(
             topic= f"{self._base_topic}/{type}s/{input_dict['id']}",
-            payload= self.json_dict_to_str({"err": 0}, mqtt_err_handler),
+            payload= self.json_dict_to_str({"e": 0}, mqtt_err_handler),
             qos= 2
         )
 
-        print(f"MQTT: message sent on {self._base_topic}/{type}s/{input_dict['id']}: {self.json_dict_to_str({'err': 0}, mqtt_err_handler)}")
+        print(f"MQTT: message sent on {self._base_topic}/{type}s/{input_dict['id']}: {self.json_dict_to_str({'e': 0}, mqtt_err_handler)}")
 
 
 
@@ -143,7 +143,7 @@ class Catalog():
 
         # Give possibility to ask for MQTT broker
         if (len(uri) == 1 and uri[0] == "MQTTbroker"):
-            output_dict = {"hostname": self._broker_hostname, "port": self._broker_port, "base_topic": self._base_topic}
+            output_dict = {"h": self._broker_hostname, "p": self._broker_port, "t": self._base_topic}
             return self.json_dict_to_str(output_dict, rest_err_handler)
         
         # Check path correctness
@@ -168,8 +168,8 @@ class Catalog():
         rest_err_handler = self.RestErrorHandler()
 
         # Check path correctness
-        if not (len(uri) == 2 and uri[0] in ["devices", "users", "services"] and uri[1] == "subscription"):
-            raise cherrypy.HTTPError(404, "POST available on \"type/subscription\" (type = \"devices\", \"users\" or \"services\")")
+        if not (len(uri) == 2 and uri[0] in ["devices", "users", "services"] and uri[1] == "sub"):
+            raise cherrypy.HTTPError(404, "POST available on \"type/sub\" (type = \"devices\", \"users\" or \"services\")")
         
         # Get payload and convert it to JSON
         try:
@@ -199,8 +199,8 @@ class Catalog():
         rest_err_handler = self.RestErrorHandler()
 
         # Check path correctness
-        if not (len(uri) == 2 and uri[0] in ["devices", "services"] and uri[1] == "refresh"):
-            raise cherrypy.HTTPError(404, "PUT available on \"type/refresh\" (type = \"devices\" or \"services\")")
+        if not (len(uri) == 2 and uri[0] in ["devices", "services"] and uri[1] == "upd"):
+            raise cherrypy.HTTPError(404, "PUT available on \"type/upd\" (type = \"devices\" or \"services\")")
         
         # Get payload and convert it to JSON
         try:
@@ -261,24 +261,24 @@ class Catalog():
                 self.insert_device(
                     device_id= item_id,
                     timestamp= timestamp,
-                    end_points_dict= json_dict["end_points"],
-                    resources_list= json_dict["info"]["resources"],
+                    end_points_dict= json_dict["ep"],
+                    resources_list= json_dict["in"]["r"],
                     err_handler= err_handler
                 )
             elif type == "user":
                 self.insert_user(
                     user_id= item_id,
-                    name= json_dict["info"]["name"],
-                    surname= json_dict["info"]["surname"],
-                    emails_list= json_dict["info"]["emails"],
+                    name= json_dict["in"]["n"],
+                    surname= json_dict["in"]["s"],
+                    emails_list= json_dict["in"]["e"],
                     err_handler= err_handler
                 )
             elif type == "service":
                 self.insert_service(
                     service_id= item_id,
                     timestamp= timestamp,
-                    end_points_dict= json_dict["end_points"],
-                    description= json_dict["info"]["description"],
+                    end_points_dict= json_dict["ep"],
+                    description= json_dict["in"]["d"],
                     err_handler= err_handler 
                 )
 
@@ -395,7 +395,7 @@ class Catalog():
             for resource in resources_list:
                 query = f"""
                         INSERT INTO device_resources(device_id, resource)
-                        VALUES('{device_id}', '{resource["name"]}');
+                        VALUES('{device_id}', '{resource["n"]}');
                         """
                 self.execute_query(query, err_handler)
         
@@ -418,7 +418,7 @@ class Catalog():
             for email in emails_list:
                 query = f"""
                         INSERT INTO user_emails(user_id, email)
-                        VALUES('{user_id}', '{email["value"]}');
+                        VALUES('{user_id}', '{email["v"]}');
                         """
                 self.execute_query(query, err_handler)
         
@@ -452,7 +452,7 @@ class Catalog():
                     for end_point in end_points_dict[protocol][method]:
                         query = f"""
                                 INSERT INTO {type}_end_points({type}_id, end_point, protocol, method)
-                                VALUES('{item_id}', '{end_point["value"]}', '{protocol}', '{method}');
+                                VALUES('{item_id}', '{end_point["v"]}', '{protocol}', '{method}');
                                 """
                         self.execute_query(query, err_handler)
         
@@ -468,8 +468,8 @@ class Catalog():
     def get_device(self, device_id, err_handler):
         output_dict = {}
         output_dict["id"] = device_id
-        output_dict["end_points"] = self.get_end_points("device", device_id, err_handler)
-        output_dict["info"] = {}
+        output_dict["ep"] = self.get_end_points("device", device_id, err_handler)
+        output_dict["in"] = {}
 
         query = f"""
                 SELECT resource
@@ -481,9 +481,9 @@ class Catalog():
         for row in result:
             resource = row[0]
 
-            if "resources" not in output_dict["info"]:
-                output_dict["info"]["resources"] = []
-            output_dict["info"]["resources"].append({"name": resource})
+            if "resources" not in output_dict["in"]:
+                output_dict["in"]["r"] = []
+            output_dict["in"]["r"].append({"n": resource})
 
         return self.json_dict_to_str(output_dict, err_handler)
 
@@ -491,7 +491,7 @@ class Catalog():
     def get_user(self, user_id, err_handler):
         output_dict = {}
         output_dict["id"] = user_id
-        output_dict["info"] = {}
+        output_dict["in"] = {}
 
         query = f"""
                 SELECT name, surname
@@ -500,8 +500,8 @@ class Catalog():
                 """
         result = self.execute_query(query, err_handler, is_select=True)
 
-        output_dict["info"]["name"] = result[0]
-        output_dict["info"]["surname"] = result[1]
+        output_dict["in"]["n"] = result[0]
+        output_dict["in"]["s"] = result[1]
 
         query = f"""
                 SELECT email
@@ -513,9 +513,9 @@ class Catalog():
         for row in result:
             email = row[0]
 
-            if "emails" not in output_dict["info"]:
-                output_dict["info"]["emails"] = []
-            output_dict["info"]["emails"].append({"value": email})
+            if "emails" not in output_dict["in"]:
+                output_dict["in"]["e"] = []
+            output_dict["in"]["e"].append({"v": email})
 
         return self.json_dict_to_str(output_dict, err_handler)
 
@@ -523,8 +523,8 @@ class Catalog():
     def get_service(self, service_id, err_handler):
         output_dict = {}
         output_dict["id"] = service_id
-        output_dict["end_points"] = self.get_end_points("service", service_id, err_handler)
-        output_dict["info"] = {}
+        output_dict["ep"] = self.get_end_points("service", service_id, err_handler)
+        output_dict["in"] = {}
 
         query = f"""
                 SELECT description
@@ -533,7 +533,7 @@ class Catalog():
                 """
         result = self.execute_query(query, err_handler, is_select=True)
 
-        output_dict["info"]["description"] = result[0]
+        output_dict["in"]["d"] = result[0]
 
         return self.json_dict_to_str(output_dict, err_handler)
         
@@ -557,7 +557,7 @@ class Catalog():
             if method not in res_dict[protocol]:
                 res_dict[protocol][method] = []
 
-            res_dict[protocol][method].append({"value": end_point})
+            res_dict[protocol][method].append({"v": end_point})
 
         return res_dict
 
@@ -657,7 +657,7 @@ class Catalog():
             super().notify(param, msg)
             self._mqtt_client.publish(
                 topic= self._topic,
-                payload= json.dumps({"err": 1, "msg": f"{msg}"}),
+                payload= json.dumps({"e": 1, "m": f"{msg}"}),
                 qos= 2
             )
 

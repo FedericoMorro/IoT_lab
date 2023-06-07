@@ -1,34 +1,50 @@
 # Subscribe and refresh
 
+
 ## Device JSON
+- identifier -> id
+- end_points -> ep
+  - rest -> r
+    - get (read) -> r
+    - post (create) -> c
+    - put (update) -> u
+    - delete -> d
+      - value -> v
+  - mqtt -> m
+    - subscriber -> s
+    - publisher -> p
+      - value -> v
+- info -> in
+  - resources -> r
+    - name -> n
 ```JSON
 {
     "id": "device_id",
-    "end_points": {
-        "REST": {
-            "GET": [
-                {"value": "127.0.0.1:8080/0"},
-                {"value": "127.0.0.1:8080/1"}
+    "ep": {
+        "r": {
+            "r": [
+                {"v": "127.0.0.1:8080/0"},
+                {"v": "127.0.0.1:8080/1"}
             ],
-            "PUT": [
-                {"value": "127.0.0.1:8080/2"}
+            "c": [
+                {"v": "127.0.0.1:8080/2"}
             ]
         },
-        "MQTT": {
-            "subscriber": [
-                {"value": "/IoT_lab/group3/device/0"}
+        "m": {
+            "s": [
+                {"v": "/IoT_lab/group3/device/0"}
             ],
-            "publisher": [
-                {"value": "/IoT_lab/group3/device/1"},
-                {"value": "/IoT_lab/group3/device/2"}
+            "p": [
+                {"v": "/IoT_lab/group3/device/1"},
+                {"v": "/IoT_lab/group3/device/2"}
             ]
         }
     },
-    "info": {
-        "resources": [
-            {"name": "temperature"},
-            {"name": "humidity"},
-            {"name": "motion_sensor"}
+    "in": {
+        "r": [
+            {"n": "temperature"},
+            {"n": "humidity"},
+            {"n": "motion_sensor"}
         ]
     }
 }
@@ -36,14 +52,20 @@
 
 
 ## User JSON
+- identifier -> id
+- info -> in
+  - name -> n
+  - surname -> s
+  - emails -> e
+    - value -> v
 ```JSON
 {
     "id": "user_id",
-    "info": {
-        "name": "Mario",
-        "surname": "Rossi",
-        "emails": [
-            {"value": "mario.rossi@gmail.com"}
+    "in": {
+        "n": "Mario",
+        "s": "Rossi",
+        "e": [
+            {"v": "mario.rossi@gmail.com"}
         ]
     }
 }
@@ -51,43 +73,74 @@
 
 
 ## Service JSON
+- identifier -> id
+- end_points -> ep
+  - rest -> r
+    - get (read) -> r
+    - post (create) -> c
+    - put (update) -> u
+    - delete -> d
+      - value -> v
+  - mqtt -> m
+    - subscriber -> s
+    - publisher -> p
+      - value -> v
+- info -> in
+  - description -> d
 ```JSON
 {
     "id": "service_id",
-    "end_points": {
-        "REST": {
-            "GET": [
-                {"value": "127.0.0.1:8080/0"},
-                {"value": "127.0.0.1:8080/1"}
+    "ep": {
+        "r": {
+            "r": [
+                {"v": "127.0.0.1:8080/0"},
+                {"v": "127.0.0.1:8080/1"}
             ],
-            "PUT": [
-                {"value": "127.0.0.1:8080/2"}
+            "c": [
+                {"v": "127.0.0.1:8080/2"}
             ]
         },
-        "MQTT": {
-            "subscriber": [
-                {"value": "/IoT_lab/group3/service/0"}
+        "m": {
+            "s": [
+                {"v": "/IoT_lab/group3/service/0"}
             ],
-            "publisher": [
-                {"value": "/IoT_lab/group3/service/1"},
-                {"value": "/IoT_lab/group3/service/2"}
+            "p": [
+                {"v": "/IoT_lab/group3/service/1"},
+                {"v": "/IoT_lab/group3/service/2"}
             ]
         }
     },
-    "info": {
-        "description": ""
+    "in": {
+        "d": ""
     }
 }
 ```
 
 
+# MQTT
 
-# MQTT response
 
+## MQTT broker
+- hostname -> h
+- port -> p
+- base_topic -> t
 ```JSON
 {
-    "err": 0/1
-    "msg": "error_message"
+    "h": "127.0.0.1",
+    "p": 8080,
+    "t": "..."
+}
+```
+
+
+
+## MQTT response
+- error -> e
+- message -> m
+```JSON
+{
+    "e": 0/1
+    "m": "error_message"
 }
 ```
 
