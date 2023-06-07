@@ -6,7 +6,7 @@ import time
 import threading
 
 
-CATALOG_IP_ADDR = "192.168.151.123"
+CATALOG_IP_ADDR = "127.0.0.1"
 
 DB_NAME = "db_catalog.db"
 DB_TABLES = ["devices", "device_end_points", "device_resources",
@@ -25,7 +25,7 @@ class Catalog():
         self._db_name = DB_NAME
 
         self._client_id = "IoT_lab_group3_Catalog"
-        self._broker_hostname = "127.0.0.1"
+        self._broker_hostname = "test.mosquitto.org"
         self._broker_port = 1883
         self._base_topic = "/tiot/g03/cat"
 
@@ -156,7 +156,7 @@ class Catalog():
             return self.get_item(type, uri[1], rest_err_handler)
 
         output_dict = []
-        items_list = self.get_all_items(type)
+        items_list = self.get_all_items(type, rest_err_handler)
 
         for item in items_list:
             output_dict.append(self.get_item(type, item[0], rest_err_handler))
