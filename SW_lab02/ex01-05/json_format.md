@@ -1,4 +1,33 @@
-# Subscribe and refresh
+# Catalog JSON
+- types -> t
+- 
+```JSON
+{
+    "ep": {
+        "r": {
+            "r": [
+                {"v": "0"},
+                {"v": "127.0.0.1:8080/1"}
+            ],
+            "c": [
+                {"v": "127.0.0.1:8080/2"}
+            ]
+        },
+        "m": {
+            "s": [
+                {"v": "/IoT_lab/group3/device/0"}
+            ],
+            "p": [
+                {"v": "/IoT_lab/group3/device/1"},
+                {"v": "/IoT_lab/group3/device/2"}
+            ]
+        }
+    }
+}
+```
+
+
+# Subscribe and update
 
 
 ## Device JSON
@@ -135,12 +164,15 @@
 
 
 ## MQTT response
-- error -> e
-- message -> m
+- info -> in
+  - error -> e
+  - message -> m
 ```JSON
 {
-    "e": 0/1
-    "m": "error_message"
+    "in": {
+        "e": 0/1,
+        "m": "error_message"
+    }
 }
 ```
 

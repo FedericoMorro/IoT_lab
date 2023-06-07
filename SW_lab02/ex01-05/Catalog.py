@@ -134,12 +134,30 @@ class Catalog():
             qos= 2
         )
 
-        print(f"MQTT: message sent on {self._base_topic}/{type}s/{input_dict['id']}: {self.json_dict_to_str({'e': 0}, mqtt_err_handler)}")
+        print(f"MQTT: message sent on {self._base_topic}/{type}s/{input_dict['id']}: {self.json_dict_to_str({'in': {'e': 0}}, mqtt_err_handler)}")
 
 
 
     def GET(self, *uri, **params):      # retrieve
         rest_err_handler = self.RestErrorHandler()
+
+        # Give possibility to ask for Catalog info about subscription
+        if (len(uri) == 0):
+            output_dict = {
+                "ep": {
+                    "r": {
+                        "r": [],
+                        "c": [],
+                        "u": [],
+                        "d": []
+                    },
+                    "m": {
+                        "p": [],
+                        "s": []
+                    }
+                }
+            }
+            return self.json_dict_to_str(output_dict, rest_err_handler)
 
         # Give possibility to ask for MQTT broker
         if (len(uri) == 1 and uri[0] == "MQTTbroker"):
@@ -657,7 +675,7 @@ class Catalog():
             super().notify(param, msg)
             self._mqtt_client.publish(
                 topic= self._topic,
-                payload= json.dumps({"e": 1, "m": f"{msg}"}),
+                payload= json.dumps({"in": {"e": 1, "m": f"{msg}"}}),
                 qos= 2
             )
 
