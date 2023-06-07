@@ -150,14 +150,20 @@
 
 
 ## MQTT broker
-- hostname -> h
-- port -> p
-- base_topic -> t
+- rest -> r
+  - hostname -> hn
+  - port -> pt
+- mqtt -> m
+  - base_topic -> bt
 ```JSON
 {
-    "h": "127.0.0.1",
-    "p": 8080,
-    "t": "..."
+    "r": {
+        "hn": "127.0.0.1",
+        "pt": 8080
+    },
+    "m": {
+        "bt": "..."
+    }
 }
 ```
 

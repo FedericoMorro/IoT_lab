@@ -52,7 +52,7 @@ const int capacity_sen_ml = JSON_OBJECT_SIZE(2) + JSON_ARRAY_SIZE(1) + JSON_OBJE
 DynamicJsonDocument doc_snd_sen_ml(capacity_sen_ml);
 DynamicJsonDocument doc_rec_sen_ml(capacity_sen_ml);
 
-const int capacity_cat = JSON_OBJECT_SIZE(2) + 100;
+const int capacity_cat = JSON_OBJECT_SIZE(4) + JSON_ARRAY_SIZE(2) + 100;
 DynamicJsonDocument doc_rec_cat(capacity_cat);
 
 const int capacity_cat_subscription = JSON_OBJECT_SIZE(6) + JSON_ARRAY_SIZE(2) + JSON_OBJECT_SIZE(4) + 200;
@@ -212,9 +212,9 @@ void get_mqtt_broker() {
         Serial.println(err.c_str());
     }
 
-    const char *tmp = doc_rec_cat["h"];
+    const char *tmp = doc_rec_cat["r"]["hn"];
     broker_address = String(tmp);
-    broker_port = doc_rec_cat["p"];
+    broker_port = doc_rec_cat["r"]["pt"];
 
     Serial.print("[DEBUG] Broker info: "); Serial.print(broker_address); Serial.print(":"); Serial.println(broker_port);
 }
