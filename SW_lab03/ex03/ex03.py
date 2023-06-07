@@ -21,22 +21,22 @@ class Service():
 
         self._payload = {
             "id": "service_led_id",
-            "end_points": {
-                "REST": {
-                    "GET": [
+            "ep": {
+                "r": {
+                    "r": [
                     ],
-                    "PUT": [
+                    "c": [
                     ]
                 },
-                "MQTT": {
-                    "subscriber": [
+                "m": {
+                    "s": [
                     ],
-                    "publisher": [
+                    "p": [
                     ]
                 }
             },
-            "info": {
-                "description": "led/temperature"
+            "in": {
+                "d": "led/temp"
             }
         }
 
@@ -67,10 +67,10 @@ class Service():
 
 
     def subscribe(self):
-        self._mqtt_client.subscribe(f"{self._mqtt_data['base_topic']}/services/{self._service_id}", 2)
+        self._mqtt_client.subscribe(f"{self._mqtt_data['t']}/services/{self._service_id}", 2)
 
         self._mqtt_client.publish(
-            topic = f"{self._mqtt_data['base_topic']}/services/subscription",
+            topic = f"{self._mqtt_data['t']}/services/sub",
             payload = f"{json.dumps(self._payload)}",
             qos = 2
         )
@@ -79,7 +79,7 @@ class Service():
             time.sleep(refresh_time)
 
             self._mqtt_client.publish(
-                topic = f"{self._mqtt_data['base_topic']}/services/refresh",
+                topic = f"{self._mqtt_data['t']}/services/upd",
                 payload = f"{json.dumps(self._payload)}",
                 qos = 2
             )
@@ -129,8 +129,8 @@ class Service():
 
             input_dict = json.loads(payload)
 
-            self._broker_hostname = input_dict["hostname"]
-            self._broker_port = input_dict["port"]
+            self._broker_hostname = input_dict["h"]
+            self._broker_port = input_dict["p"]
 
         except KeyError as exc:
             print(f"Missing or wrong key in JSON file: {exc}")
@@ -149,14 +149,14 @@ class Service():
             for device in input_dict:
 
                 has_led = False
-                for resource in device["info"]["resources"]:
-                    if resource["name"] == "sub/led":
+                for resource in device["in"]["r"]:
+                    if resource["n"] == "sub/led":
                         has_led = True
 
                 if has_led:
-                    for endpoint in device["end_points"]["MQTT"]["subscriber"]:
-                        if "led" in endpoint["value"]:
-                            self._publisher_topics.append(endpoint["value"])
+                    for endpoint in device["ep"]["m"]["s"]:
+                        if endpoint["value"].find("led") != -1:
+                            self._publisher_topics.append(endpoint["v"])
 
         except KeyError as exc:
             print(f"Missing or wrong key in JSON file: {exc}")
