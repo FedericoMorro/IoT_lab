@@ -149,7 +149,8 @@ class Catalog():
                     "r": {
                         "hn": [{"v": CATALOG_IP_ADDR}],
                         "pt": [{"v": CATALOG_PORT}],
-                        "r": [{"v": "/devices"}, {"v": "/users"}, {"v": "/services"}],
+                        "r": [{"v": "/devices"}, {"v": "/users"}, {"v": "/services"},
+                              {"v": "/devices/#"}, {"v": "/users/#"}, {"v": "/services/#"}],
                         "c": [{"v": "/devices/sub"}, {"v": "/users/sub"}, {"v": "/services/sub"}],
                         "u": [{"v": "/devices/upd"}, {"v": "/users/upd"}, {"v": "/services/upd"}],
                         "d": [{"v": "/devices/#"}, {"v": "/users/#"}, {"v": "/services/#"}]

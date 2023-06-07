@@ -20,22 +20,21 @@ If hn,pt or bt are specified, the other attributes are relative
 {
     "ep": {
         "r": {
-            "r": [
-                {"v": "0"},
-                {"v": "127.0.0.1:8080/1"}
-            ],
-            "c": [
-                {"v": "127.0.0.1:8080/2"}
-            ]
+            "hn": [{"v": CATALOG_IP_ADDR}],
+            "pt": [{"v": CATALOG_PORT}],
+            "r": [{"v": "/devices"}, {"v": "/users"}, {"v": "/services"},
+                    {"v": "/devices/#"}, {"v": "/users/#"}, {"v": "/services/#"}],
+            "c": [{"v": "/devices/sub"}, {"v": "/users/sub"}, {"v": "/services/sub"}],
+            "u": [{"v": "/devices/upd"}, {"v": "/users/upd"}, {"v": "/services/upd"}],
+            "d": [{"v": "/devices/#"}, {"v": "/users/#"}, {"v": "/services/#"}]
         },
         "m": {
-            "s": [
-                {"v": "/IoT_lab/group3/device/0"}
-            ],
-            "p": [
-                {"v": "/IoT_lab/group3/device/1"},
-                {"v": "/IoT_lab/group3/device/2"}
-            ]
+            "hn": [{"v": self._broker_hostname}],
+            "pt": [{"v": self._broker_port}],
+            "bt": [{"v": self._base_topic}],
+            "p": [{"v": "/devices/#"}, {"v": "/users/#"}, {"v": "/services/#"}],
+            "s": [{"v": "/devices/sub"}, {"v": "/users/sub"}, {"v": "/services/sub"},
+                    {"v": "/devices/upd"}, {"v": "/users/upd"}, {"v": "/services/upd"}]
         }
     }
 }
