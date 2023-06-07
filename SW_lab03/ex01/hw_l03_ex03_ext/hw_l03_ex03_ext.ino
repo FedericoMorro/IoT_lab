@@ -2,16 +2,17 @@
 #include <ArduinoHttpClient.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
-#include <Scheduler.h>
 
 #include "arduino_secrets.h"
 
 
 // Pins
 #define TEMPERATURE_PIN A0
-
 #define LED_PIN 2
 
+#define CHECK_MQTT_MSG_INTERVAL   500   // ms
+#define REFRESH_CATALOG_INTERVAL  20000 // ms
+#define MQTT_PUB_INTERVAL         10000 // ms
 
 // Temperature sensor
 const int B = 4275, T0 = 25;
@@ -23,7 +24,7 @@ double temperature;
 uint8_t led_state;
 
 // Id
-char device_id[] = "IoT_lab_group3_Arduino";
+char device_id[] = "IoT_G3_Ard";
 
 // WiFi
 char ssid[] = SECRET_SSID;
@@ -32,7 +33,7 @@ int status = WL_IDLE_STATUS;
 WiFiClient wifi;
 
 // Catalog
-char catalog_address[] = "192.168.210.123";    // to be modified
+char catalog_address[] = "192.168.151.123";    // to be modified
 int catalog_port = 8080;
 HttpClient http_client = HttpClient(wifi, catalog_address, catalog_port);
 const String catalog_base_topic = "/IoT_lab/group3/catalog/devices";
@@ -54,14 +55,13 @@ DynamicJsonDocument doc_rec_sen_ml(capacity_sen_ml);
 const int capacity_cat = JSON_OBJECT_SIZE(2) + 100;
 DynamicJsonDocument doc_rec_cat(capacity_cat);
 
-const int capacity_cat_subscription = JSON_OBJECT_SIZE(6) + JSON_ARRAY_SIZE(2) + JSON_OBJECT_SIZE(4) + 2000;
+const int capacity_cat_subscription = JSON_OBJECT_SIZE(6) + JSON_ARRAY_SIZE(2) + JSON_OBJECT_SIZE(4) + 200;
 DynamicJsonDocument doc_snd_cat_sub(capacity_cat_subscription);
 
 
 // Function prototypes
 void get_mqtt_broker();
 void mqtt_reconnect();
-void loop_refresh_catalog_subscription();
 void refresh_catalog_subscription();
 void check_mqtt_msg();
 String sen_ml_encode(String dev, float val, String unit);
@@ -70,7 +70,9 @@ String sen_ml_encode(String dev, float val, String unit);
 // Callback definition
 void callback(char *topic, byte *payload, unsigned int length) {
 
-    if (topic == (catalog_base_topic + String(device_id)).c_str()) {
+    Serial.println(String("Message received on topic: ") + topic);
+
+    if (String(topic) == catalog_base_topic + String("/") + String(device_id)) {
         DeserializationError err = deserializeJson(doc_rec_cat, (char *) payload);
 
         if (err) {
@@ -82,11 +84,12 @@ void callback(char *topic, byte *payload, unsigned int length) {
             Serial.println("[DEBUG] Refreshed subscribtion to Catalog");
             return;
         } else {
+            Serial.println("[DEBUG] Error in refresh to Catalog");
             refresh_catalog_subscription();
         }
 
     }
-    else if (topic == (base_topic + String("/led")).c_str()) {
+    else if (String(topic) == base_topic + String("/led")) {
         DeserializationError err = deserializeJson(doc_rec_sen_ml, (char *) payload);
 
         if (err) {
@@ -108,6 +111,10 @@ void callback(char *topic, byte *payload, unsigned int length) {
 // PubSub client
 PubSubClient mqtt_client(wifi);
 //PubSubClient client(broker_address.c_str(), broker_port, callback, wifi);
+
+int tim_check_mqtt_msg;
+int tim_refresh_catalog;
+int tim_mqtt_pub;
 
 
 void setup() {
@@ -133,32 +140,43 @@ void setup() {
     mqtt_client.setServer(broker_address.c_str(), broker_port);
     mqtt_client.setCallback(callback);
 
-    // Initialize scheduler tasks
-    Scheduler.startLoop(loop_refresh_catalog_subscription);
-    Scheduler.startLoop(check_mqtt_msg);
+    tim_check_mqtt_msg = millis();
+    tim_refresh_catalog = millis();
+    tim_mqtt_pub = millis();
 }
 
 
 void loop() {
-
     if (mqtt_client.state() != MQTT_CONNECTED) {
         mqtt_reconnect();
     }
 
-    // Read temperature
-    double v = (double) analogRead(TEMPERATURE_PIN);
-    double r = (1023.0 / v - 1.0) * (double)R1;
-    temperature = 1.0 / ( (log(r / (double)R0) / (double)B) + (1.0 / ((double)T0 + TK))) - TK;
-    Serial.print("[DEBUG] Measured temperature: "); Serial.println(temperature);
+    if (millis() - tim_refresh_catalog > REFRESH_CATALOG_INTERVAL) {
+        refresh_catalog_subscription();
+        tim_refresh_catalog = millis();
+    }
 
-    // Create body
-    body = sen_ml_encode("temperature", (float) temperature, "Cel");
+    if (millis() - tim_mqtt_pub > MQTT_PUB_INTERVAL) {
+        // Read temperature
+        double v = (double) analogRead(TEMPERATURE_PIN);
+        double r = (1023.0 / v - 1.0) * (double)R1;
+        temperature = 1.0 / ( (log(r / (double)R0) / (double)B) + (1.0 / ((double)T0 + TK))) - TK;
+        Serial.print("[DEBUG] Measured temperature: "); Serial.println(temperature);
 
-    // Publish temperature reading
-    mqtt_client.publish((base_topic + String("/temperature")).c_str(), body.c_str());
-    
-    delay(10000);
-    yield();
+        // Create body
+        body = sen_ml_encode("temperature", (float) temperature, "Cel");
+
+        // Publish temperature reading
+        mqtt_client.publish((base_topic + String("/temperature")).c_str(), body.c_str());
+        tim_mqtt_pub = millis();
+    }
+
+    if (millis() - tim_check_mqtt_msg > CHECK_MQTT_MSG_INTERVAL) {
+        check_mqtt_msg();
+        tim_check_mqtt_msg = millis();
+    }
+
+    delay(50);
 }
 
 
@@ -170,9 +188,6 @@ void check_mqtt_msg() {
 
     // Check if there are new message on subscribed topics (-> callback)
     mqtt_client.loop();
-
-    delay(1000);
-    yield();
 }
 
 
@@ -214,7 +229,7 @@ void mqtt_reconnect() {
             mqtt_client.subscribe((base_topic + String("/led")).c_str());
 
             // Subscribe to catalog to get response
-            mqtt_client.subscribe((catalog_base_topic + String(device_id)).c_str());
+            mqtt_client.subscribe((catalog_base_topic + String("/") + String(device_id)).c_str());
         }
         else {
             Serial.print("failed, rc=");
@@ -223,14 +238,6 @@ void mqtt_reconnect() {
             delay(5000);
         }
     }
-}
-
-
-void loop_refresh_catalog_subscription() {
-    refresh_catalog_subscription();
-    delay(2000);
-
-    yield();
 }
 
 
@@ -244,20 +251,22 @@ void refresh_catalog_subscription() {
     // Create body
     doc_snd_cat_sub.clear();
     doc_snd_cat_sub["id"] = device_id;
-    doc_snd_cat_sub["end_points"]["MQTT"]["publisher"][0]["value"] = (base_topic + String("/temperature")).c_str();
-    doc_snd_cat_sub["end_points"]["MQTT"]["subscriber"][0]["value"] = (base_topic + String("/led")).c_str();
+    doc_snd_cat_sub["end_points"]["MQTT"]["publisher"][0]["value"] = base_topic + String("/temperature");
+    doc_snd_cat_sub["end_points"]["MQTT"]["subscriber"][0]["value"] = base_topic + String("/led");
     doc_snd_cat_sub["info"]["resources"][0]["name"] = "pub/temperature";
     doc_snd_cat_sub["info"]["resources"][1]["name"] = "sub/led";
 
-    serializeJson(doc_snd_sen_ml, output);
+    serializeJson(doc_snd_cat_sub, output);
+
+    Serial.println(output);
 
     // Publish the subscription
     if (first_sub) {
-        mqtt_client.publish((catalog_base_topic + String("subscription")).c_str(), output.c_str());
+        mqtt_client.publish((catalog_base_topic + String("/subscription")).c_str(), output.c_str());
         first_sub = false;
         Serial.println("[DEBUG] Try subscribtion to Catalog");
     } else {
-        mqtt_client.publish((catalog_base_topic + String("refresh")).c_str(), output.c_str());
+        mqtt_client.publish((catalog_base_topic + String("/refresh")).c_str(), output.c_str());
         Serial.println("[DEBUG] Try refresh to Catalog");
     }
 
