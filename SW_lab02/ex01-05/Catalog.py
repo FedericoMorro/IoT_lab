@@ -142,7 +142,7 @@ class Catalog():
     def GET(self, *uri, **params):      # retrieve
         rest_err_handler = self.RestErrorHandler()
 
-        # Give possibility to ask for Catalog info about subscription
+        # Give possibility to ask for Catalog (and broker) info
         if (len(uri) == 0):
             output_dict = {
                 "ep": {
@@ -155,25 +155,12 @@ class Catalog():
                         "d": [{"v": "/devices/#"}, {"v": "/users/#"}, {"v": "/services/#"}]
                     },
                     "m": {
+                        "hn": [{"v": self._broker_hostname}],
+                        "pt": [{"v": self._broker_port}],
                         "bt": [{"v": self._base_topic}],
                         "p": [{"v": "/devices/#"}, {"v": "/users/#"}, {"v": "/services/#"}],
                         "s": [{"v": "/devices/sub"}, {"v": "/users/sub"}, {"v": "/services/sub"},
                               {"v": "/devices/upd"}, {"v": "/users/upd"}, {"v": "/services/upd"}]
-                    }
-                }
-            }
-            return self.json_dict_to_str(output_dict, rest_err_handler)
-
-        # Give possibility to ask for MQTT broker
-        if (len(uri) == 1 and uri[0] == "MQTTbroker"):
-            output_dict = {
-                "ep": {
-                    "r": {
-                        "hn": [{"v": self._broker_hostname}],
-                        "pt": [{"v": self._broker_port}]
-                    },
-                    "m": {
-                        "bt": [{"v": self._base_topic}]
                     }
                 }
             }

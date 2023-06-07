@@ -30,7 +30,7 @@ class MQTT_Device():
         self._mqtt_client = PahoMQTT.Client(self._client_id, clean_session=False)
         self._mqtt_client.on_message = self._callback_on_MQTT_message
 
-        self._mqtt_client.connect(self._mqtt_data['ep']["r"]["hn"][0]["v"], self._mqtt_data['ep']["r"]["pt"][0]["v"])
+        self._mqtt_client.connect(self._mqtt_data["ep"]["m"]["hn"][0]["v"], self._mqtt_data["ep"]["m"]["pt"][0]["v"])
         self._mqtt_client.loop_start()
 
         self._thread = Thread(target = self.subscribe)
@@ -52,7 +52,7 @@ class MQTT_Device():
     
 
     def _mqtt_init(self):
-        r = req.get(f"http://{ip_addr}:{port}/MQTTbroker")
+        r = req.get(f"http://{ip_addr}:{port}/")
         return json.loads(r.text)
     
 

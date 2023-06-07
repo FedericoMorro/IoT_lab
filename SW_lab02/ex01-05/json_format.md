@@ -10,6 +10,8 @@ If hn,pt or bt are specified, the other attributes are relative
     - delete -> d
       - value -> v
   - mqtt -> m
+    - broker hostname -> hn
+    - broker port -> pt
     - (base_topic -> bt)
     - subscriber -> s
     - publisher -> p
@@ -160,34 +162,6 @@ If hn,pt or bt are specified, the other attributes are relative
 
 
 # MQTT
-
-
-## MQTT broker
-- end_points -> ep
-  - rest -> r
-    - hostname -> hn
-    - port -> pt
-  - mqtt -> m
-    - base_topic -> bt
-```JSON
-{
-    "ep": {
-        "r": {
-            "hn": [
-                {"v": "127.0.0.1"}
-            ]
-            "pt": [
-                {"v": 8080}
-            ]
-        },
-        "m": {
-            "bt": [
-                {"v": "..."}
-            ]
-        }
-    }
-}
-```
 
 
 

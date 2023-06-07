@@ -36,7 +36,7 @@ WiFiClient wifi;
 char catalog_address[] = "192.168.151.123";    // to be modified
 int catalog_port = 8080;
 HttpClient http_client = HttpClient(wifi, catalog_address, catalog_port);
-const String catalog_base_topic = "/tiot/g03/cat/devices";
+String catalog_base_topic;
 
 // Broker
 String broker_address;
@@ -52,7 +52,7 @@ const int capacity_sen_ml = JSON_OBJECT_SIZE(2) + JSON_ARRAY_SIZE(1) + JSON_OBJE
 DynamicJsonDocument doc_snd_sen_ml(capacity_sen_ml);
 DynamicJsonDocument doc_rec_sen_ml(capacity_sen_ml);
 
-const int capacity_cat = JSON_OBJECT_SIZE(8) + JSON_ARRAY_SIZE(3) + 100;
+const int capacity_cat = JSON_OBJECT_SIZE(32) + JSON_ARRAY_SIZE(12) + 100;
 DynamicJsonDocument doc_rec_cat(capacity_cat);
 
 const int capacity_cat_subscription = JSON_OBJECT_SIZE(6) + JSON_ARRAY_SIZE(2) + JSON_OBJECT_SIZE(4) + 200;
@@ -197,7 +197,7 @@ void get_mqtt_broker() {
     while (return_code != 200) {
         Serial.println("GET request...");
 
-        http_client.get("/MQTTbroker");
+        http_client.get("/");
         return_code = http_client.responseStatusCode();
 
         Serial.println("Response code: " + return_code);
@@ -212,9 +212,11 @@ void get_mqtt_broker() {
         Serial.println(err.c_str());
     }
 
-    const char *tmp = doc_rec_cat["ep"]["r"]["hn"][0]["v"];
+    const char *tmp = doc_rec_cat["ep"]["m"]["hn"][0]["v"];
     broker_address = String(tmp);
-    broker_port = doc_rec_cat["ep"]["r"]["pt"][0]["v"];
+    broker_port = doc_rec_cat["ep"]["m"]["pt"][0]["v"];
+
+    catalog_base_topic = doc_rec_cat["ep"]["m"]["bt"][0]["v"] + String("/devices");
 
     Serial.print("[DEBUG] Broker info: "); Serial.print(broker_address); Serial.print(":"); Serial.println(broker_port);
 }

@@ -97,12 +97,12 @@ class Service():
 
     def get_mqtt_broker(self):
         try:
-            payload = requests.get(self._catalog_uri + "/MQTTbroker")
+            payload = requests.get(self._catalog_uri)
 
             input_dict = json.loads(payload)
 
-            self._broker_hostname = input_dict["ep"]["r"]["hn"][0]["v"]
-            self._broker_port = input_dict["ep"]["r"]["pt"][0]["v"]
+            self._broker_hostname = input_dict["ep"]["m"]["hn"][0]["v"]
+            self._broker_port = input_dict["ep"]["m"]["pt"][0]["v"]
 
         except KeyError as exc:
             print(f"Missing or wrong key in JSON file: {exc}")
