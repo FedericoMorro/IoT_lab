@@ -149,13 +149,16 @@ class Catalog():
                     "r": {
                         "hn": [{"v": CATALOG_IP_ADDR}],
                         "pt": [{"v": CATALOG_PORT}],
-                        "c": [{"v": "devices/sub"}, {"v": "users/sub"}, {"v": "services/sub"}],
-                        "u": [{"v": "devices/upd"}, {"v": "users/upd"}, {"v": "services/upd"}]
+                        "r": [{"v": "/devices"}, {"v": "/users"}, {"v": "/services"}],
+                        "c": [{"v": "/devices/sub"}, {"v": "/users/sub"}, {"v": "/services/sub"}],
+                        "u": [{"v": "/devices/upd"}, {"v": "/users/upd"}, {"v": "/services/upd"}],
+                        "d": [{"v": "/devices/#"}, {"v": "/users/#"}, {"v": "/services/#"}]
                     },
                     "m": {
                         "bt": [{"v": self._base_topic}],
-                        "s": [{"v": "devices/sub"}, {"v": "users/sub"}, {"v": "services/sub"},
-                              {"v": "devices/upd"}, {"v": "users/upd"}, {"v": "services/upd"}]
+                        "p": [{"v": "/devices/#"}, {"v": "/users/#"}, {"v": "/services/#"}],
+                        "s": [{"v": "/devices/sub"}, {"v": "/users/sub"}, {"v": "/services/sub"},
+                              {"v": "/devices/upd"}, {"v": "/users/upd"}, {"v": "/services/upd"}]
                     }
                 }
             }
