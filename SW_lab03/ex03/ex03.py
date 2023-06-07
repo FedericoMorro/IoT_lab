@@ -12,7 +12,7 @@ port = 8080
 class Service():
 
     def __init__(self):
-        self._service_id = "IoT_lab_group3_service_subscriber"
+        self._service_id = "IoT_lab_group3_service_publisher"
 
         self._catalog_uri = "http://192.0.0.1:8080"
 
@@ -20,7 +20,7 @@ class Service():
         self._broker_port = -1        
 
         self._payload = {
-            "id": "service_temp_id",
+            "id": "service_led_id",
             "end_points": {
                 "REST": {
                     "GET": [
@@ -36,7 +36,7 @@ class Service():
                 }
             },
             "info": {
-                "description": "sub/temperature"
+                "description": "led/temperature"
             }
         }
 
@@ -55,6 +55,10 @@ class Service():
         self.get_temperature_topics()
 
         self._subscribed_topics = []
+        self._publisher_topics = []
+
+        self._pub_thread = Thread(target = self.publish_led)
+        self._pub_thread.start()
 
 
     def __del__(self):
@@ -81,17 +85,41 @@ class Service():
             )
         
 
+    def publish_led(self):
+        val = 1
+
+        while True:
+            for endpoint in self._publisher_topics:
+                self._mqtt_client.publish(
+                    topic = f"{endpoint}",
+                    payload = self._encode_led_pl(val),
+                    qos = 2
+                )
+
+            val = 1 - val
+            time.sleep(15)
+
+
+    def _encode_led_pl(self, val):
+        pl = {
+            "bn": f'{self._service_id}',
+            "e": [
+                {"n": "led"},
+                {"t": int(time.time())},
+                {"v": val},
+                {"u": "None"}
+            ]
+        }
+
+        return pl
+
+
     def callback_mqtt_on_connect(self, client, userdata, flags, rc):
         print("Connected to the mqtt broker")
 
 
     def callback_mqtt_on_message(self, paho_mqtt, userdata, msg):
-        input_str = msg.payload.decode("utf-8")
-        input_dict = json.loads(input_str)
-
-        for data in input_dict["e"]:
-            if data["n"] == "temperature":
-                print(f'Timestamp: {data["t"]}: {data["v"]} {data["u"]}')
+        pass
 
 
 
@@ -112,7 +140,7 @@ class Service():
             print(f"An exception occurred: {exc}")
 
 
-    def get_temperature_topics(self):
+    def get_led_topics(self):
         try:
             payload = requests.get(self._catalog_uri + "/devices")
 
@@ -120,15 +148,15 @@ class Service():
 
             for device in input_dict:
 
-                has_temp = False
+                has_led = False
                 for resource in device["info"]["resources"]:
-                    if resource["name"] == "pub/temperature":
-                        has_temp = True
+                    if resource["name"] == "sub/led":
+                        has_led = True
 
-                if has_temp:
-                    for endpoint in device["end_points"]["MQTT"]["publisher"]:
-                        if "temperature" in endpoint["value"]:
-                            self._subscribed_topics.append(endpoint["value"])
+                if has_led:
+                    for endpoint in device["end_points"]["MQTT"]["subscriber"]:
+                        if "led" in endpoint["value"]:
+                            self._publisher_topics.append(endpoint["value"])
 
         except KeyError as exc:
             print(f"Missing or wrong key in JSON file: {exc}")
