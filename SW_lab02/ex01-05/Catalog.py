@@ -166,7 +166,17 @@ class Catalog():
 
         # Give possibility to ask for MQTT broker
         if (len(uri) == 1 and uri[0] == "MQTTbroker"):
-            output_dict = {"ep": {"r": {"hn": [{"v": self._broker_hostname}], "pt": [{"v": self._broker_port}]}, "m": {"bt": [{"v": self._base_topic}]}}}
+            output_dict = {
+                "ep": {
+                    "r": {
+                        "hn": [{"v": self._broker_hostname}],
+                        "pt": [{"v": self._broker_port}]
+                    },
+                    "m": {
+                        "bt": [{"v": self._base_topic}]
+                    }
+                }
+            }
             return self.json_dict_to_str(output_dict, rest_err_handler)
         
         # Check path correctness
