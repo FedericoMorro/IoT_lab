@@ -27,7 +27,7 @@ class Catalog():
         self._client_id = "IoT_lab_group3_Catalog"
         self._broker_hostname = "127.0.0.1"
         self._broker_port = 1883
-        self._base_topic = "/IoT/g03/cat"
+        self._base_topic = "/tiot/g03/cat"
 
         # Initialize MQTT
         self._mqtt_client = PahoMQTT.Client(self._client_id, clean_session=False)
@@ -39,7 +39,7 @@ class Catalog():
 
         self._subscribed_topics = []
         for item in ["devices", "services", "users"]:
-            for operation in ["sub", "ref"]:
+            for operation in ["sub", "upd"]:
                 self._subscribed_topics.append((f"{self._base_topic}/{item}/{operation}", 2))
         self._mqtt_client.subscribe(self._subscribed_topics)
 

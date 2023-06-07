@@ -82,29 +82,29 @@ void loop() {
 String registering_payload_encode() {
     String res = "{\
         \"id\": \"ArduinoGroup3\",\
-        \"end_points\": {\
-            \"REST\": [\
-                \"GET\": [\
-                    {\"value\": \"127.0.0.1:8080/0\"},\
-                    {\"value\": \"127.0.0.1:8080/1\"}
+        \"ep\": {\
+            \"r\": [\
+                \"r\": [\
+                    {\"v\": \"127.0.0.1:8080/0\"},\
+                    {\"v\": \"127.0.0.1:8080/1\"}
                 ],
-                \"PUT\": [
-                    {\"value\": \"127.0.0.1:8080/2\"}
+                \"c\": [
+                    {\"v\": \"127.0.0.1:8080/2\"}
                 ]
             ],\
-            \"MQTT\": [\
-                \"subscriber\": [
-                    {\"value\": \"/IoT_lab/group3/device/0\"}
+            \"m\": [\
+                \"s\": [
+                    {\"v\": \"/tiot/g03/dev/0\"}
                 ],\
-                \"publisher\": [\
-                    {\"value\": \"/IoT_lab/group3/device/1\"},
-                    {\"value\": \"/IoT_lab/group3/device/2\"}
+                \"p\": [\
+                    {\"v\": \"/tiot/g03/dev/1\"},
+                    {\"v\": \"/tiot/g03/dev/2\"}
                 ]\
             ],\
         }\
-        \"info\": {\
-            \"resources\": [\
-                {\"name\": \"temperature\"\}\
+        \"in\": {\
+            \"r\": [\
+                {\"n\": \"temp\"\}\
             ]\
         }\
     }";
@@ -121,7 +121,7 @@ int registering() {
 
     // Send the request
     client.beginRequest();
-    client.post("/devices/subscription");
+    client.post("/devices/sub");
 
     /* 
     * change session_id in the cookie header according to postman session_id, it will be
@@ -160,7 +160,7 @@ void refreshing(uint alarm_num) {
 
     // Send the request
     client.beginRequest();
-    client.put("/devices/refresh", content_type, body);
+    client.put("/devices/upd", content_type, body);
   
     int ret = client.responseStatusCode();
     Serial.print("[DEBUG] PUT request response code: "); Serial.println(ret);

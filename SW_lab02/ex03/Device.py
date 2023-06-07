@@ -32,12 +32,12 @@ class Device():
     def _generate_payload(self) -> dict:
         pl = {
             "id": self.device_id,
-            "end_points": {
-                "REST": self.rest_endpoints,
-                "MQTT": self.mqtt_endpoints
+            "ep": {
+                "r": self.rest_endpoints,
+                "m": self.mqtt_endpoints
             },
-            "info": {
-                "resources": self.resources
+            "in": {
+                "r": self.resources
             }
         }
 
@@ -46,7 +46,7 @@ class Device():
     
     def publish(self):
         payload = self._generate_payload()
-        requests.post(f"http://{ip_addr}:{port}/devices/subscription", data = json.dumps(payload))
+        requests.post(f"http://{ip_addr}:{port}/devices/sub", data = json.dumps(payload))
 
         return
 
@@ -56,4 +56,4 @@ class Device():
             time.sleep(REFRESH_TIME)
             
             payload = self._generate_payload()
-            requests.put(f"http://{ip_addr}:{port}/devices/refresh", data = json.dumps(payload))
+            requests.put(f"http://{ip_addr}:{port}/devices/upd", data = json.dumps(payload))

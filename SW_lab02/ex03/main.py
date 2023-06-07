@@ -7,7 +7,7 @@ def _rest_endpoints_gathering(type: str) -> list:
 
     for i in range(0, tmp_rest_ep_n, 1):
         tmp_device_rest_ep = input(f"Insert the REST {type} device endpoint: ")
-        tmp_rest_ep_list.append({"value": tmp_device_rest_ep})
+        tmp_rest_ep_list.append({"v": tmp_device_rest_ep})
 
     return tmp_rest_ep_list
 
@@ -18,29 +18,29 @@ def _mqtt_endpoints_gathering(type: str) -> list:
 
     for i in range(0, tmp_mqtt_ep_n, 1):
         tmp_device_mqtt_ep = input(f"Insert the MQTT {type} device endpoint: ")
-        tmp_mqtt_ep_list.append({"value": tmp_device_mqtt_ep})
+        tmp_mqtt_ep_list.append({"v": tmp_device_mqtt_ep})
 
     return tmp_mqtt_ep_list
 
 
 def _values_gathering(id) -> Device:
     rest_eps = {
-        "GET": _rest_endpoints_gathering("GET"),
-        "POST": _rest_endpoints_gathering("POST"),
-        "PUT": _rest_endpoints_gathering("PUT"),
-        "DELETE": _rest_endpoints_gathering("DELETE")
+        "r": _rest_endpoints_gathering("GET"),
+        "c": _rest_endpoints_gathering("POST"),
+        "u": _rest_endpoints_gathering("PUT"),
+        "d": _rest_endpoints_gathering("DELETE")
     }
 
     mqtt_eps = {
-        "subscriber": _mqtt_endpoints_gathering("subscriber"),
-        "publisher": _mqtt_endpoints_gathering("publisher")
+        "s": _mqtt_endpoints_gathering("subscriber"),
+        "p": _mqtt_endpoints_gathering("publisher")
     }
 
     resrc_list = list()
     resrc_n = int(input("How many types of resources type does the device have? "))
     for i in range(0, resrc_n, 1):
         tmp_device_resource = input("Insert the device resource type: ")
-        resrc_list.append({"name": tmp_device_resource})
+        resrc_list.append({"n": tmp_device_resource})
 
     tmp_device = Device(
         id,
