@@ -80,7 +80,7 @@ void callback(char *topic, byte *payload, unsigned int length) {
             Serial.println(err.c_str());
         }
 
-        if (doc_rec_cat["e"] == 0) {
+        if (doc_rec_cat["in"]["e"] == 0) {
             Serial.println("[DEBUG] Refreshed subscribtion to Catalog");
             return;
         } else {
