@@ -212,9 +212,9 @@ void get_mqtt_broker() {
         Serial.println(err.c_str());
     }
 
-    const char *tmp = doc_rec_cat["r"]["hn"];
+    const char *tmp = doc_rec_cat["ep"]["r"]["hn"];
     broker_address = String(tmp);
-    broker_port = doc_rec_cat["r"]["pt"];
+    broker_port = doc_rec_cat["ep"]["r"]["pt"];
 
     Serial.print("[DEBUG] Broker info: "); Serial.print(broker_address); Serial.print(":"); Serial.println(broker_port);
 }
