@@ -1,5 +1,6 @@
-# Catalog JSON
-If hn,pt or bt are specified, the other attributes are relative
+# JSON format
+
+- identifier -> id
 - end_points -> ep
   - rest -> r
     - (hostname -> hn)
@@ -16,6 +17,22 @@ If hn,pt or bt are specified, the other attributes are relative
     - subscriber -> s
     - publisher -> p
       - value -> v
+- resources -> rs
+  - name -> n
+  - type -> t
+- info -> in
+  - description -> d
+  - error -> e
+  - message -> m
+  - name -> n
+  - surname -> s
+  - emails -> e
+    - value -> v
+
+In end_points, if hn,pt or bt are specified, the other attributes are relative
+
+
+## Catalog JSON
 ```JSON
 {
     "ep": {
@@ -29,27 +46,9 @@ If hn,pt or bt are specified, the other attributes are relative
 ```
 
 
-# Subscribe and update
+## Subscribe and update
 
-
-## Device JSON
-- identifier -> id
-- end_points -> ep
-  - rest -> r
-    - get (read) -> r
-    - post (create) -> c
-    - put (update) -> u
-    - delete -> d
-      - value -> v
-      - type -> t
-  - mqtt -> m
-    - subscriber -> s
-    - publisher -> p
-      - value -> v
-      - type -> t
-- resources -> rs
-  - name -> n
-  - type -> t
+### Device JSON
 ```JSON
 {
     "id": "device_id",
@@ -81,14 +80,7 @@ If hn,pt or bt are specified, the other attributes are relative
 }
 ```
 
-
-## User JSON
-- identifier -> id
-- info -> in
-  - name -> n
-  - surname -> s
-  - emails -> e
-    - value -> v
+### User JSON
 ```JSON
 {
     "id": "user_id",
@@ -102,27 +94,7 @@ If hn,pt or bt are specified, the other attributes are relative
 }
 ```
 
-
-## Service JSON
-- identifier -> id
-- end_points -> ep
-  - rest -> r
-    - get (read) -> r
-    - post (create) -> c
-    - put (update) -> u
-    - delete -> d
-      - value -> v
-      - type -> t
-  - mqtt -> m
-    - subscriber -> s
-    - publisher -> p
-      - value -> v
-      - type -> t
-- resources -> rs
-  - name -> n
-  - type -> t
-- info -> in
-  - description -> d
+### Service JSON
 ```JSON
 {
     "id": "service_id",
@@ -158,14 +130,7 @@ If hn,pt or bt are specified, the other attributes are relative
 ```
 
 
-# MQTT
-
-
-
-## MQTT response
-- info -> in
-  - error -> e
-  - message -> m
+## MQTT response JSON
 ```JSON
 {
     "in": {
@@ -176,8 +141,7 @@ If hn,pt or bt are specified, the other attributes are relative
 ```
 
 
-
-# REST response
+## REST response
 No need of a JSON file
 - On failure an HTTP error is raised
 - On success the code 200 is returned + a confirmation string
