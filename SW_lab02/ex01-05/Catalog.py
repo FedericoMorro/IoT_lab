@@ -146,22 +146,10 @@ class Catalog():
         if (len(uri) == 0):
             output_dict = {
                 "ep": {
-                    "r": {
-                        "hn": [{"v": CATALOG_IP_ADDR}],
-                        "pt": [{"v": CATALOG_PORT}],
-                        "r": [{"v": "/devices"}, {"v": "/users"}, {"v": "/services"},
-                              {"v": "/devices/#"}, {"v": "/users/#"}, {"v": "/services/#"}],
-                        "c": [{"v": "/devices/sub"}, {"v": "/users/sub"}, {"v": "/services/sub"}],
-                        "u": [{"v": "/devices/upd"}, {"v": "/users/upd"}, {"v": "/services/upd"}],
-                        "d": [{"v": "/devices/#"}, {"v": "/users/#"}, {"v": "/services/#"}]
-                    },
                     "m": {
-                        "hn": [{"v": self._broker_hostname}],
-                        "pt": [{"v": self._broker_port}],
-                        "bt": [{"v": self._base_topic}],
-                        "p": [{"v": "/devices/#"}, {"v": "/users/#"}, {"v": "/services/#"}],
-                        "s": [{"v": "/devices/sub"}, {"v": "/users/sub"}, {"v": "/services/sub"},
-                              {"v": "/devices/upd"}, {"v": "/users/upd"}, {"v": "/services/upd"}]
+                        "hn": [{"v": self._broker_hostname, "t": ""}],
+                        "pt": [{"v": self._broker_port, "t": ""}],
+                        "bt": [{"v": self._base_topic, "t": ""}]
                     }
                 }
             }

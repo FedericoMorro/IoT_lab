@@ -19,22 +19,10 @@ If hn,pt or bt are specified, the other attributes are relative
 ```JSON
 {
     "ep": {
-        "r": {
-            "hn": [{"v": CATALOG_IP_ADDR}],
-            "pt": [{"v": CATALOG_PORT}],
-            "r": [{"v": "/devices"}, {"v": "/users"}, {"v": "/services"},
-                    {"v": "/devices/#"}, {"v": "/users/#"}, {"v": "/services/#"}],
-            "c": [{"v": "/devices/sub"}, {"v": "/users/sub"}, {"v": "/services/sub"}],
-            "u": [{"v": "/devices/upd"}, {"v": "/users/upd"}, {"v": "/services/upd"}],
-            "d": [{"v": "/devices/#"}, {"v": "/users/#"}, {"v": "/services/#"}]
-        },
         "m": {
-            "hn": [{"v": self._broker_hostname}],
-            "pt": [{"v": self._broker_port}],
-            "bt": [{"v": self._base_topic}],
-            "p": [{"v": "/devices/#"}, {"v": "/users/#"}, {"v": "/services/#"}],
-            "s": [{"v": "/devices/sub"}, {"v": "/users/sub"}, {"v": "/services/sub"},
-                    {"v": "/devices/upd"}, {"v": "/users/upd"}, {"v": "/services/upd"}]
+            "hn": [{"v": self._broker_hostname, "t": ""}],
+            "pt": [{"v": self._broker_port, "t": ""}],
+            "bt": [{"v": self._base_topic, "t": ""}]
         }
     }
 }
@@ -53,43 +41,44 @@ If hn,pt or bt are specified, the other attributes are relative
     - put (update) -> u
     - delete -> d
       - value -> v
+      - type -> t
   - mqtt -> m
     - subscriber -> s
     - publisher -> p
       - value -> v
+      - type -> t
 - info -> in
   - resources -> r
     - name -> n
+    - type -> t
 ```JSON
 {
     "id": "device_id",
     "ep": {
         "r": {
             "r": [
-                {"v": "127.0.0.1:8080/0"},
-                {"v": "127.0.0.1:8080/1"}
+                {"v": "127.0.0.1:8080/0", "t": "temp"},
+                {"v": "127.0.0.1:8080/1", "t": "hum"}
             ],
             "c": [
-                {"v": "127.0.0.1:8080/2"}
+                {"v": "127.0.0.1:8080/2", "t": "mot"}
             ]
         },
         "m": {
             "s": [
-                {"v": "/IoT_lab/group3/device/0"}
+                {"v": "/IoT_lab/group3/device/0", "t": "mot"}
             ],
             "p": [
-                {"v": "/IoT_lab/group3/device/1"},
-                {"v": "/IoT_lab/group3/device/2"}
+                {"v": "/IoT_lab/group3/device/1", "t": "temp"},
+                {"v": "/IoT_lab/group3/device/2", "t": "hum"}
             ]
         }
     },
-    "in": {
-        "r": [
-            {"n": "temperature"},
-            {"n": "humidity"},
-            {"n": "motion_sensor"}
-        ]
-    }
+    "r": [
+        {"n": "temperature", "t": "temp"},
+        {"n": "humidity", "t": "hum"},
+        {"n": "motion_sensor", "t": "mot"}
+    ]
 }
 ```
 
@@ -136,23 +125,28 @@ If hn,pt or bt are specified, the other attributes are relative
     "ep": {
         "r": {
             "r": [
-                {"v": "127.0.0.1:8080/0"},
-                {"v": "127.0.0.1:8080/1"}
+                {"v": "127.0.0.1:8080/0", "t": "temp"},
+                {"v": "127.0.0.1:8080/1", "t": "hum"}
             ],
             "c": [
-                {"v": "127.0.0.1:8080/2"}
+                {"v": "127.0.0.1:8080/2", "t": "mot"}
             ]
         },
         "m": {
             "s": [
-                {"v": "/IoT_lab/group3/service/0"}
+                {"v": "/IoT_lab/group3/device/0", "t": "mot"}
             ],
             "p": [
-                {"v": "/IoT_lab/group3/service/1"},
-                {"v": "/IoT_lab/group3/service/2"}
+                {"v": "/IoT_lab/group3/device/1", "t": "temp"},
+                {"v": "/IoT_lab/group3/device/2", "t": "hum"}
             ]
         }
     },
+    "r": [
+        {"n": "temperature", "t": "temp"},
+        {"n": "humidity", "t": "hum"},
+        {"n": "motion_sensor", "t": "mot"}
+    ]
     "in": {
         "d": ""
     }
