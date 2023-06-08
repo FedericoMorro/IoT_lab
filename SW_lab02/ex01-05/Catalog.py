@@ -10,9 +10,6 @@ CATALOG_IP_ADDR = "127.0.0.1"
 CATALOG_PORT = 8080
 
 DB_NAME = "db_catalog.db"
-DB_TABLES = ["devices", "device_end_points", "device_resources",
-             "users", "user_emails",
-             "services", "service_end_points"]
 
 
 class Catalog():
