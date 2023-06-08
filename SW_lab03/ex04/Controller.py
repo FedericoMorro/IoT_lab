@@ -89,7 +89,7 @@ class Controller():
         # PIR
         self._pir_presence = 0
         self._PIR_TIMEOUT = 10  # seconds
-        self._pir_time = int(time.time())
+        self._pir_time = time.time()
         self._pir_timeout_thread = Thread(target = self._check_pir_timeout)
 
         # Microphone
@@ -135,9 +135,11 @@ class Controller():
             type = topic_elem[4]        # check index
 
             if type == "temp":
-                self._ac_pwm_value()    # pass as argument the temperature
+                self._temperature_callback()    # pass as argument the temperature
             elif type == "pir":
-                self._update_presence() # pass as argument the temperature
+                self._pir_callback() # pass as argument the pir value
+            elif type == "mic":
+                self._mic_callback() # pass as argument the mic presence value
 
         except KeyError as exc:
             print(f"ERROR: Missing or wrong key in input JSON: {exc}")
@@ -157,6 +159,27 @@ class Controller():
         while True:
             time.sleep(60)
             req.put(catalog_uri, data = json.dumps(self.payload))
+
+
+    def _temperature_callback(self, val):
+        r = (1023 / val - 1) * self._R1
+        self._temperature = 1 / ( (np.log(r / self._R0) / self._B) + (1.0 / (self._T0 + self._TK))) - self._TK
+
+        if self._pir_presence or self._mic_presence:
+            self._ac_pwm_value(self._min_ac_presence, self._max_ac_presence)
+            self._ht_pwm_value(self._min_ht_presence, self._max_ht_presence)
+        else:
+            self._ac_pwm_value(self._min_ac_absence, self._max_ac_absence)
+            self._ht_pwm_value(self._min_ht_absence, self._max_ht_absence)
+
+
+    def _pir_callback(self, presence):
+        self._pir_presence = presence
+        self._pir_time = time.time()
+
+
+    def _mic_callback(self, presence):
+        self._mic_callback = presence
 
 
     def _ac_pwm_value(self, min, max):
@@ -192,22 +215,6 @@ class Controller():
 
 
     def _mqtt_ht_pwm(self):
-        pass
-
-
-    def _temperature_callback(self, val):
-        r = (1023 / val - 1) * self._R1
-        self._temperature = 1 / ( (np.log(r / self._R0) / self._B) + (1.0 / (self._T0 + self._TK))) - self._TK
-
-        if self._pir_presence or self._mic_presence:
-            self._ac_pwm_value(self._min_ac_presence, self._max_ac_presence)
-            self._ht_pwm_value(self._min_ht_presence, self._max_ht_presence)
-        else:
-            self._ac_pwm_value(self._min_ac_absence, self._max_ac_absence)
-            self._ht_pwm_value(self._min_ht_absence, self._max_ht_absence)
-
-
-    def _update_presence(self):
         pass
 
 

@@ -95,8 +95,6 @@ uint8_t presence;
 
 // Pir sensor
 uint8_t pir_presence;
-const int pir_timeout = 10 * 1000;      //30 * 60 * 1000;
-int pir_time;
 void pir_presence_isr();
 
 // Microphone
@@ -176,8 +174,6 @@ void loop() {
 
     // pir presence timeout moved to Controller.py
 
-    presence = (pir_presence || microphone_presence) ? 1:0;
-
     Serial.print("PIR presence: "); Serial.print(pir_presence);
     Serial.print("\tMicrophone presence: "); Serial.println(microphone_presence);
 
@@ -196,7 +192,7 @@ void loop() {
 
 void pir_presence_isr() {
     pir_presence = 1;
-    pir_time = millis();
+    // update pir value on mqtt
 }
 
 
@@ -230,6 +226,8 @@ void loop_update_audio_samples_cnt() {
     Serial.print("Sum of buffer cnt :"); Serial.println(sum);
 
     microphone_presence = (sum >= n_sound_events) ? 1:0;
+
+    // TODO: send microphone_presence val on MQTT
 
     delay(sound_interval / BUFFER_SIZE_SAMPLES_CNT);
 }
