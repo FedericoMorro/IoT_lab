@@ -28,11 +28,11 @@ class Service():
         self._mqtt_client.connect(self._broker_hostname, self._broker_port)
         self._mqtt_client.loop_start()
 
-        self._subscribed_topics_type = []
+        self._subscribed_topics_type_device = []
         self.get_temperature_topics()
 
-        for topic_type in self._subscribed_topics_type:
-            self._mqtt_client.subscribe(topic_type[0], qos= 2)
+        for topic_type_device in self._subscribed_topics_type_device:
+            self._mqtt_client.subscribe(topic_type_device[0], qos= 2)
 
         self._REFRESH_DELAY = 60
         self._thread = Thread(target = self.thread_refresh_catalog_subscription)
@@ -41,8 +41,8 @@ class Service():
 
 
     def __del__(self):
-        for topic_type in self._subscribed_topics_type:
-            self._mqtt_client.unsubscribe(topic_type[0])
+        for topic_type_device in self._subscribed_topics_type_device:
+            self._mqtt_client.unsubscribe(topic_type_device[0])
         self._mqtt_client.loop_stop()
 
 
@@ -64,35 +64,27 @@ class Service():
 
     
     def thread_refresh_catalog_subscription(self):
-        is_first = True
+        # Subscribe
+        requests.post(f"{self._catalog_uri}/services/sub", data= self.payload_catalog_subscription())
 
         while True:
-
-            if is_first:
-                self.refresh_catalog_subscription(is_first= True)
-                is_first = False
-
-            self.refresh_catalog_subscription()
-
+            # Refresh subscription
+            requests.put(f"{self._catalog_uri}/services/upd", data= self.payload_catalog_subscription())
+            
             time.sleep(self._REFRESH_DELAY)
 
 
-    def refresh_catalog_subscription(self, is_first=False):
+    def payload_catalog_subscription(self):
         payload_dict = {}
         payload_dict["id"] = self._service_id
         payload_dict["ep"]["m"]["s"] = []
         payload_dict["rs"] = []
         payload_dict["in"]["d"] = "Read temperature from sensors"
 
-        for topic_type in self._subscribed_topics_type:
-            payload_dict["ep"]["m"]["s"].append({"v": topic_type[0], "t": topic_type[1]})
+        for topic_type_device in self._subscribed_topics_type_device:
+            payload_dict["ep"]["m"]["s"].append({"v": topic_type_device[0], "t": topic_type_device[1]})
 
-        payload_str = self.json_dict_to_str(payload_dict)
-
-        if is_first:
-            requests.post(f"{self._catalog_uri}/services/sub", data= payload_str)
-        else:
-            requests.put(f"{self._catalog_uri}/services/upd", data= payload_str)
+        return self.json_dict_to_str(payload_dict)            
 
 
 
@@ -136,7 +128,7 @@ class Service():
                 if has_temp:
                     for mqtt_endpoint in device["ep"]["m"]["p"]:
                         if mqtt_endpoint["t"] == ep_type:
-                            self._subscribed_topics_type.append((mqtt_endpoint["v"], mqtt_endpoint["t"]))
+                            self._subscribed_topics_type_device.append((mqtt_endpoint["v"], mqtt_endpoint["t"], device["id"]))
 
         except KeyError as exc:
             print(f"Missing or wrong key in JSON file: {exc}")
