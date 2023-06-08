@@ -4,9 +4,9 @@ import paho.mqtt.client as PahoMQTT
 import requests
 import json
 
-refresh_time = 60
 
 CATALOG_URI = "http://192.0.0.1:8080"
+
 
 class Service():
 
