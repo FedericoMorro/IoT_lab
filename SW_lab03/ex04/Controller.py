@@ -150,6 +150,22 @@ class Controller():
                     self._pir_callback(data["v"])           # pass as argument the pir value
                 elif type == "mic_presence":
                     self._mic_callback(data["v"])           # pass as argument the mic presence value
+                elif type == "min_ac_absence_threshold":
+                    self._min_ac_absence_threshold_callback(data["v"])
+                elif type == "max_ac_absence_threshold":
+                    self._max_ac_absence_threshold_callback(data["v"])
+                elif type == "min_ac_presence_threshold":
+                    self._min_ac_presence_threshold_callback(data["v"])
+                elif type == "max_ac_presence_threshold":
+                    self._max_ac_presence_threshold_callback(data["v"])
+                elif type == "min_ht_absence_threshold":
+                    self._min_ht_absence_threshold_callback(data["v"])
+                elif type == "max_ht_absence_threshold":
+                    self._max_ht_absence_threshold_callback(data["v"])
+                elif type == "min_ht_presence_threshold":
+                    self._min_ht_presence_threshold_callback(data["v"])
+                elif type == "max_ht_presence_threshold":
+                    self._max_ht_presence_threshold_callback(data["v"])
 
         except KeyError as exc:
             print(f"ERROR: Missing or wrong key in input JSON: {exc}")
@@ -226,3 +242,35 @@ class Controller():
 
                 self._ac_pwm_value()
                 self._ht_pwm_value()
+
+    
+    def _min_ac_absence_threshold_callback(self, val):
+        self._min_ac_absence = val
+
+
+    def _max_ac_absence_threshold_callback(self, val):
+        self._max_ac_absence = val
+    
+    
+    def _min_ac_presence_threshold_callback(self, val):
+        self._min_ac_presence = val
+
+
+    def _max_ac_presence_threshold_callback(self, val):
+        self._max_ac_presence = val
+
+
+    def _min_ht_absence_threshold_callback(self, val):
+        self._min_ht_absence = val
+
+
+    def _max_ht_absence_threshold_callback(self, val):
+        self._max_ht_absence = val
+
+
+    def _min_ht_presence_threshold_callback(self, val):
+        self._min_ht_presence = val
+
+
+    def _max_ht_presence_threshold_callback(self, val):
+        self._max_ht_presence = val
