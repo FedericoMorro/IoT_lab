@@ -37,6 +37,7 @@ def main():
         "DROP TABLE IF EXISTS user_emails;",
         "DROP TABLE IF EXISTS services; ",
         "DROP TABLE IF EXISTS service_end_points;",
+        "DROP TABLE IF EXISTS service_resources;",
         """
         CREATE TABLE devices (
             device_id VARCHAR(32),
@@ -59,6 +60,7 @@ def main():
         CREATE TABLE device_resources (
             device_id VARCHAR(32),
             resource VARCHAR(100),
+            type VARCHAR(50) NOT NULL,
             PRIMARY KEY(device_id, resource),
             FOREIGN KEY(device_id) REFERENCES devices(device_id) ON DELETE CASCADE ON UPDATE CASCADE 
         );
@@ -102,6 +104,7 @@ def main():
         CREATE TABLE service_resources (
             service_id VARCHAR(32),
             resource VARCHAR(100),
+            type VARCHAR(50) NOT NULL,
             PRIMARY KEY(service_id, resource),
             FOREIGN KEY(service_id) REFERENCES devices(service_id) ON DELETE CASCADE ON UPDATE CASCADE 
         );

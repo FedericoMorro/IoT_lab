@@ -268,7 +268,7 @@ class Catalog():
                     device_id= item_id,
                     timestamp= timestamp,
                     end_points_dict= json_dict["ep"],
-                    resources_list= json_dict["in"]["r"],
+                    resources_list= json_dict["rs"],
                     err_handler= err_handler
                 )
             elif type == "user":
@@ -284,6 +284,7 @@ class Catalog():
                     service_id= item_id,
                     timestamp= timestamp,
                     end_points_dict= json_dict["ep"],
+                    resources_list= json_dict["rs"],
                     description= json_dict["in"]["d"],
                     err_handler= err_handler 
                 )
@@ -374,6 +375,7 @@ class Catalog():
             self.delete_item_referenced_tables(type, item_id, "user_emails", err_handler)
         elif type == "service":
             self.delete_item_referenced_tables(type, item_id, "service_end_points", err_handler)
+            self.delete_item_referenced_tables(type, item_id, "service_resources", err_handler)
 
         query = f"""
                 DELETE FROM {type}s
@@ -397,20 +399,12 @@ class Catalog():
             err_handler= err_handler
         )
 
-        try:
-            for resource in resources_list:
-                query = f"""
-                        INSERT INTO device_resources(device_id, resource)
-                        VALUES('{device_id}', '{resource["n"]}');
-                        """
-                self.execute_query(query, err_handler)
-        
-        except KeyError as exc:
-            err_handler.notify(400, f"Missing or wrong key in JSON file: {exc}")
-            return
-        except Exception as exc:
-            err_handler.notify(500, f"An exception occurred: {exc}")
-            return
+        self.insert_resources(
+            type= "device",
+            item_id= device_id,
+            resources_list= resources_list,
+            err_hadler= err_handler
+        )
 
 
     def insert_user(self, user_id, name, surname, emails_list, err_handler):
@@ -436,7 +430,7 @@ class Catalog():
             return
 
 
-    def insert_service(self, service_id, timestamp, end_points_dict, description, err_handler):
+    def insert_service(self, service_id, timestamp, end_points_dict, resources_list, description, err_handler):
         query = f"""
                 INSERT INTO services(service_id, description, timestamp)
                 VALUES(''{service_id}', '{description}', {timestamp});
@@ -450,6 +444,13 @@ class Catalog():
             err_handler= err_handler
         )
 
+        self.insert_resources(
+            type= "service",
+            item_id= service_id,
+            resources_list= resources_list,
+            err_handler= err_handler
+        )
+
 
     def insert_end_points(self, type, item_id, end_points_dict, err_handler):
         try:
@@ -457,10 +458,27 @@ class Catalog():
                 for method in end_points_dict[protocol]:
                     for end_point in end_points_dict[protocol][method]:
                         query = f"""
-                                INSERT INTO {type}_end_points({type}_id, end_point, protocol, method)
-                                VALUES('{item_id}', '{end_point["v"]}', '{protocol}', '{method}');
+                                INSERT INTO {type}_end_points({type}_id, end_point, protocol, method, type)
+                                VALUES('{item_id}', '{end_point["v"]}', '{protocol}', '{method}', '{end_point["t"]}');
                                 """
                         self.execute_query(query, err_handler)
+        
+        except KeyError as exc:
+            err_handler.notify(400, f"Missing or wrong key in JSON file: {exc}")
+            return
+        except Exception as exc:
+            err_handler.notify(500, f"An exception occurred: {exc}")
+            return
+        
+
+    def insert_resources(self, type, item_id, resources_list, err_handler):
+        try:
+            for resource in resources_list:
+                query = f"""
+                        INSERT INTO {type}_resources({type}_id, resource, type)
+                        VALUES('{item_id}', '{resource["n"]}', '{resource["t"]}');
+                        """
+                self.execute_query(query, err_handler)
         
         except KeyError as exc:
             err_handler.notify(400, f"Missing or wrong key in JSON file: {exc}")
@@ -475,21 +493,7 @@ class Catalog():
         output_dict = {}
         output_dict["id"] = device_id
         output_dict["ep"] = self.get_end_points("device", device_id, err_handler)
-        output_dict["in"] = {}
-
-        query = f"""
-                SELECT resource
-                FROM device_resources
-                WHERE device_id = '{device_id}';
-                """
-        result = self.execute_query(query, err_handler, is_select=True)
-
-        for row in result:
-            resource = row[0]
-
-            if "resources" not in output_dict["in"]:
-                output_dict["in"]["r"] = []
-            output_dict["in"]["r"].append({"n": resource})
+        output_dict["rs"] = self.get_resources("device", device_id, err_handler)
 
         return self.json_dict_to_str(output_dict, err_handler)
 
@@ -530,6 +534,7 @@ class Catalog():
         output_dict = {}
         output_dict["id"] = service_id
         output_dict["ep"] = self.get_end_points("service", service_id, err_handler)
+        output_dict["rs"] = self.get_resources("service", service_id, err_handler)
         output_dict["in"] = {}
 
         query = f"""
@@ -547,7 +552,7 @@ class Catalog():
     def get_end_points(self, type, item_id, err_handler):
         res_dict = {}
         query = f"""
-                SELECT end_point, protocol, method
+                SELECT end_point, protocol, method, type
                 FROM {type}_end_points
                 WHERE {type}_id = '{item_id}';
                 """
@@ -557,16 +562,36 @@ class Catalog():
             end_point = row[0]
             protocol = row[1]
             method = row[2]
+            ep_type = row[3]
             
             if protocol not in res_dict:
                 res_dict[protocol] = {}
             if method not in res_dict[protocol]:
                 res_dict[protocol][method] = []
 
-            res_dict[protocol][method].append({"v": end_point})
+            res_dict[protocol][method].append({"v": end_point, "t": ep_type})
 
         return res_dict
+    
 
+    def get_resources(self, type, item_id, err_handler):
+        query = f"""
+                SELECT resource, type
+                FROM {type}_resources
+                WHERE {type}_id = '{item_id}';
+                """
+        result = self.execute_query(query, err_handler, is_select=True)
+
+        output_list = []
+
+        for row in result:
+            resource = row[0]
+            rs_type = row[1]
+
+            output_list.append({"v": resource, "t": rs_type})
+
+        return output_list    
+    
 
 
     def get_timestamp(self, type, item_id, err_handler):
