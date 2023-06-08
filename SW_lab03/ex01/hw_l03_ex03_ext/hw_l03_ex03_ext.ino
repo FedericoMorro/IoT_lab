@@ -216,7 +216,8 @@ void get_mqtt_broker() {
     broker_address = String(tmp);
     broker_port = doc_rec_cat["ep"]["m"]["pt"][0]["v"];
 
-    catalog_base_topic = doc_rec_cat["ep"]["m"]["bt"][0]["v"] + String("/devices");
+    const char *tmp_ = doc_rec_cat["ep"]["m"]["bt"][0]["v"];
+    catalog_base_topic = String(tmp) + String("/devices");
 
     Serial.print("[DEBUG] Broker info: "); Serial.print(broker_address); Serial.print(":"); Serial.println(broker_port);
 }
