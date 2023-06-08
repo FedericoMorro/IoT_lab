@@ -10,13 +10,15 @@
     - put (update) -> u
     - delete -> d
       - value -> v
+      - type -> t
   - mqtt -> m
-    - broker hostname -> hn
-    - broker port -> pt
+    - (broker_hostname -> hn)
+    - (broker_port -> pt)
     - (base_topic -> bt)
     - subscriber -> s
     - publisher -> p
       - value -> v
+      - type -> t
 - resources -> rs
   - name -> n
   - type -> t
