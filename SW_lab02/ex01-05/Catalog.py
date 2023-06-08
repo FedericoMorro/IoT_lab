@@ -159,7 +159,8 @@ class Catalog():
         type = uri[0].removesuffix("s")
 
         if len(uri) == 2:
-            return self.get_item(type, uri[1], rest_err_handler)
+            output_dict = self.get_item(type, uri[1], rest_err_handler)
+            return self.json_dict_to_str(output_dict, rest_err_handler)
 
         output_dict = []
         items_list = self.get_all_items(type, rest_err_handler)
@@ -403,7 +404,7 @@ class Catalog():
             type= "device",
             item_id= device_id,
             resources_list= resources_list,
-            err_hadler= err_handler
+            err_handler= err_handler
         )
 
 
@@ -433,7 +434,7 @@ class Catalog():
     def insert_service(self, service_id, timestamp, end_points_dict, resources_list, description, err_handler):
         query = f"""
                 INSERT INTO services(service_id, description, timestamp)
-                VALUES(''{service_id}', '{description}', {timestamp});
+                VALUES('{service_id}', '{description}', {timestamp});
                 """
         self.execute_query(query, err_handler)
 
@@ -495,7 +496,7 @@ class Catalog():
         output_dict["ep"] = self.get_end_points("device", device_id, err_handler)
         output_dict["rs"] = self.get_resources("device", device_id, err_handler)
 
-        return self.json_dict_to_str(output_dict, err_handler)
+        return output_dict
 
 
     def get_user(self, user_id, err_handler):
@@ -527,7 +528,7 @@ class Catalog():
                 output_dict["in"]["e"] = []
             output_dict["in"]["e"].append({"v": email})
 
-        return self.json_dict_to_str(output_dict, err_handler)
+        return output_dict
 
 
     def get_service(self, service_id, err_handler):
@@ -546,11 +547,11 @@ class Catalog():
 
         output_dict["in"]["d"] = result[0]
 
-        return self.json_dict_to_str(output_dict, err_handler)
+        return output_dict
         
 
     def get_end_points(self, type, item_id, err_handler):
-        res_dict = {}
+        ep_dict = {}
         query = f"""
                 SELECT end_point, protocol, method, type
                 FROM {type}_end_points
@@ -564,14 +565,14 @@ class Catalog():
             method = row[2]
             ep_type = row[3]
             
-            if protocol not in res_dict:
-                res_dict[protocol] = {}
-            if method not in res_dict[protocol]:
-                res_dict[protocol][method] = []
+            if protocol not in ep_dict:
+                ep_dict[protocol] = {}
+            if method not in ep_dict[protocol]:
+                ep_dict[protocol][method] = []
 
-            res_dict[protocol][method].append({"v": end_point, "t": ep_type})
+            ep_dict[protocol][method].append({"v": end_point, "t": ep_type})
 
-        return res_dict
+        return ep_dict
     
 
     def get_resources(self, type, item_id, err_handler):
@@ -582,15 +583,15 @@ class Catalog():
                 """
         result = self.execute_query(query, err_handler, is_select=True)
 
-        output_list = []
+        rs_list = []
 
         for row in result:
             resource = row[0]
             rs_type = row[1]
 
-            output_list.append({"v": resource, "t": rs_type})
+            rs_list.append({"v": resource, "t": rs_type})
 
-        return output_list    
+        return rs_list    
     
 
 

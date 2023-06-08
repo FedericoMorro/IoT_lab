@@ -47,10 +47,9 @@ If hn,pt or bt are specified, the other attributes are relative
     - publisher -> p
       - value -> v
       - type -> t
-- info -> in
-  - resources -> r
-    - name -> n
-    - type -> t
+- resources -> rs
+  - name -> n
+  - type -> t
 ```JSON
 {
     "id": "device_id",
@@ -74,7 +73,7 @@ If hn,pt or bt are specified, the other attributes are relative
             ]
         }
     },
-    "r": [
+    "rs": [
         {"n": "temperature", "t": "temp"},
         {"n": "humidity", "t": "hum"},
         {"n": "motion_sensor", "t": "mot"}
@@ -113,10 +112,15 @@ If hn,pt or bt are specified, the other attributes are relative
     - put (update) -> u
     - delete -> d
       - value -> v
+      - type -> t
   - mqtt -> m
     - subscriber -> s
     - publisher -> p
       - value -> v
+      - type -> t
+- resources -> rs
+  - name -> n
+  - type -> t
 - info -> in
   - description -> d
 ```JSON
@@ -142,11 +146,11 @@ If hn,pt or bt are specified, the other attributes are relative
             ]
         }
     },
-    "r": [
+    "rs": [
         {"n": "temperature", "t": "temp"},
         {"n": "humidity", "t": "hum"},
         {"n": "motion_sensor", "t": "mot"}
-    ]
+    ],
     "in": {
         "d": ""
     }
