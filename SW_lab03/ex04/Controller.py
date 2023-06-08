@@ -5,6 +5,7 @@ import paho.mqtt.client as PahoMQTT
 from threading import Thread
 from time import time
 
+import numpy as np
 
 # Server (Catalog) IP and port
 CATALOG_IP = "127.0.0.1"
@@ -21,6 +22,7 @@ class Controller():
         - Retreive Catalog data
         """
 
+        # Basic service data
         self._service_id = "IoT_Lab_G3_Controller"
         self._rest_ep = {
             "r": [],
@@ -43,6 +45,7 @@ class Controller():
             "bt": self._cat_info["ep"]["m"]["bt"]
         }
 
+        # MQTT init and Catalog subscription
         self._mqtt_client = PahoMQTT.Client(self._service_id, clean_session = False)
         self._mqtt_client.on_message = self._callback_mqtt_on_message
 
@@ -52,6 +55,45 @@ class Controller():
         self._mqtt_client.connect(self._mqtt_broker["hn"], self._mqtt_broker["pt"])
         self._mqtt_client.loop_start()
 
+        # Temperature computation constants
+        self._R0 = 100000
+        self._R1 = 100000
+        self._B  = 4275
+        self._T0 = 25
+        self._TK = 273.15
+
+        self._temperature = 0
+
+        # Fan information
+        self._min_fan_speed = 124   # -> if lower the fan does not move
+        self._max_fan_speed = 255
+
+        # Air conditioning information
+        self._ac_intensity = 0
+        self._min_ac_absence = 20
+        self._max_ac_absence = 25
+        self._min_ac_presence = 25
+        self._max_ac_presence = 30
+
+        # LED information
+        self._min_led_intensity = 0
+        self._max_led_intensity = 255
+
+        # Heating system information
+        self._ht_intensity = 0
+        self._min_ht_absence = 20
+        self._max_ht_absence = 25
+        self._min_ht_presence = 25
+        self._max_ht_presence = 30
+
+        # PIR
+        self._pir_presence = 0
+        self._PIR_TIMEOUT = 10  # seconds
+        self._pir_time = int(time.time())
+        self._pir_timeout_thread = Thread(target = self._check_pir_timeout)
+
+        # Microphone
+        self._mic_presence = 0
 
     @property
     def payload(self):
@@ -90,12 +132,12 @@ class Controller():
             input_dict = json.loads(input_str)
 
             topic_elem = msg.topic.split("/")
-            type = topic_elem[4] # check index
+            type = topic_elem[4]        # check index
 
             if type == "temp":
-                self._compute_hs_ac()
+                self._ac_pwm_value()    # pass as argument the temperature
             elif type == "pir":
-                self._update_presence()
+                self._update_presence() # pass as argument the temperature
 
         except KeyError as exc:
             print(f"ERROR: Missing or wrong key in input JSON: {exc}")
@@ -117,8 +159,62 @@ class Controller():
             req.put(catalog_uri, data = json.dumps(self.payload))
 
 
-    def _compute_hs_ac(self):
+    def _ac_pwm_value(self, min, max):
+        if self._temperature < min:
+            self._mqtt_ac_pwm(0)
+            return
+        
+        if self._temperature >= max:
+            self._mqtt_ac_pwm(1)
+        else:
+            ac_percentage = (self._temperature - min) / (max - min)
+
+        self._ac_intensity = ac_percentage * (self._max_fan_speed - self._min_fan_speed) + self._min_fan_speed
+        self._mqtt_ac_pwm()
+
+    
+    def _mqtt_ac_pwm(self):
         pass
+
+
+    def _ht_pwm_value(self, min, max):
+        if self._temperature < min:
+            self._mqtt_ht_pwm(0)
+            return
+        
+        if self._temperature >= max:
+            self._mqtt_ht_pwm(1)
+        else:
+            ht_percentage = (max - self._temperature) / (max - min)
+
+        self._ht_intensity = ht_percentage * (self._max_led_intensity - self._min_led_intensity) + self._min_led_intensity
+        self._mqtt_ht_pwm()
+
+
+    def _mqtt_ht_pwm(self):
+        pass
+
+
+    def _temperature_callback(self, val):
+        r = (1023 / val - 1) * self._R1
+        self._temperature = 1 / ( (np.log(r / self._R0) / self._B) + (1.0 / (self._T0 + self._TK))) - self._TK
+
+        if self._pir_presence or self._mic_presence:
+            self._ac_pwm_value(self._min_ac_presence, self._max_ac_presence)
+            self._ht_pwm_value(self._min_ht_presence, self._max_ht_presence)
+        else:
+            self._ac_pwm_value(self._min_ac_absence, self._max_ac_absence)
+            self._ht_pwm_value(self._min_ht_absence, self._max_ht_absence)
+
 
     def _update_presence(self):
         pass
+
+
+    def _check_timeout_presence(self):
+        while True:
+            if self._pir_presence and (time.time() - self._pir_time > self._PIR_TIMEOUT):
+                self._pir_presence = 0
+
+                self._ac_pwm_value()
+                self._ht_pwm_value()

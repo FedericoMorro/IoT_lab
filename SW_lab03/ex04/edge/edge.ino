@@ -81,36 +81,14 @@ void callback();
 #define SAMPLE_BUFFER_SIZE      256
 #define BUFFER_SIZE_SAMPLES_CNT 100
 
-
-// Temperature sensor
-const int B = 4275, T0 = 25;
-const long R0 = 100000, R1 = 100000;
-const double TK = 273.15;
-double v, r, temperature;
+// Temperature
+double v;
 
 // Air conditioning (fan)
 uint8_t air_conditioning_intensity;
-float ac_percentage;
-float min_ac_absence = 20;
-float max_ac_absence = 25;
-float min_ac_presence = 25;//20;
-float max_ac_presence = 30;
-uint8_t ac_pwm_value(float temp, float min, float max);
-
-const uint8_t min_fan_speed = 124;    // min pwm to turn on the fan
-const uint8_t max_fan_speed = 255;
 
 // Heating system (red led)
 uint8_t heating_intensity;
-float ht_percentage;
-float min_h_absence = 20;//10;
-float max_h_absence = 25;//15;
-float min_h_presence = 25;//10;
-float max_h_presence = 30;//20;
-uint8_t h_pwm_value(float temp, float min, float max);
-
-const uint8_t min_led_intensity = 0;
-const uint8_t max_led_intensity = 255;
 
 // Presence flag
 uint8_t presence;
@@ -193,28 +171,20 @@ void setup() {
 
 void loop() {
     v = (double) analogRead(TEMPERATURE_PIN);
-    r = (1023.0 / v - 1.0) * (double)R1;
-    temperature = 1.0 / ( (log(r / (double)R0) / (double)B) + (1.0 / ((double)T0 + TK))) - TK;
+    // temp computation moved to Controller.py
+    // send v to Controller through MQTT
 
-    if (pir_presence && (millis() - pir_time) > pir_timeout) {
-        pir_presence = 0;
-    }
+    // pir presence timeout moved to Controller.py
 
     presence = (pir_presence || microphone_presence) ? 1:0;
 
     Serial.print("PIR presence: "); Serial.print(pir_presence);
     Serial.print("\tMicrophone presence: "); Serial.println(microphone_presence);
 
-    if (presence) {
-        air_conditioning_intensity = ac_pwm_value(temperature, min_ac_presence, max_ac_presence);
-        heating_intensity = h_pwm_value(temperature, min_h_presence, max_h_presence);
-    }
-    else {
-        air_conditioning_intensity = ac_pwm_value(temperature, min_ac_absence, max_ac_absence);
-        heating_intensity = h_pwm_value(temperature, min_h_absence, max_h_absence);
-    }
-    analogWrite(FAN_PIN, air_conditioning_intensity);
-    analogWrite(RED_LED_PIN, heating_intensity);
+    // heating system and air conditioning logic moved to Controller.py
+    // retreive data on MQTT
+
+    // analogWrite on pin has to be moved in MQTT callback
 
     if (Serial.available()) {
         change_max_min();
@@ -262,38 +232,6 @@ void loop_update_audio_samples_cnt() {
     microphone_presence = (sum >= n_sound_events) ? 1:0;
 
     delay(sound_interval / BUFFER_SIZE_SAMPLES_CNT);
-}
-
-
-uint8_t ac_pwm_value(float temp, float min, float max) {
-    if (temp <= min) {
-        ac_percentage = 0;
-        return 0;
-    }
-
-    if (temp >= max) {
-        ac_percentage = 1.0;
-    } else {
-        ac_percentage = (temp - min) / (max - min);
-    }
-
-    return (uint16_t) (ac_percentage * (max_fan_speed - min_fan_speed) + min_fan_speed);
-}
-
-
-uint8_t h_pwm_value(float temp, float min, float max) {
-    if (temp >= max) {
-        ht_percentage = 0;
-        return 0;
-    }
-
-    if (temp <= min) {
-        ht_percentage = 1.0;
-    } else {
-        ht_percentage = (max - temp) / (max - min);
-    }
-
-    return (uint16_t) (ht_percentage * (max_led_intensity - min_led_intensity) + min_led_intensity);
 }
 
 
