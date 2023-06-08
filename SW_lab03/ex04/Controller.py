@@ -141,15 +141,15 @@ class Controller():
             input_dict = json.loads(input_str)
 
             # topic_elem = msg.topic.split("/")
-            for data in input_dict["e"]
+            for data in input_dict["e"]:
                 type = data["n"]        # check index
 
                 if type == "temperature":
-                    self._temperature_callback(data["v"])    # pass as argument the temperature
+                    self._temperature_callback(data["v"])   # pass as argument the temperature
                 elif type == "pir_presence":
-                    self._pir_callback(data["v"]) # pass as argument the pir value
+                    self._pir_callback(data["v"])           # pass as argument the pir value
                 elif type == "mic_presence":
-                    self._mic_callback(data["v"]) # pass as argument the mic presence value
+                    self._mic_callback(data["v"])           # pass as argument the mic presence value
 
         except KeyError as exc:
             print(f"ERROR: Missing or wrong key in input JSON: {exc}")
