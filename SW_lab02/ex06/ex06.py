@@ -6,7 +6,8 @@ def _rest_endpoints_gathering(type: str) -> list:
 
     for i in range(0, tmp_rest_ep_n, 1):
         tmp_device_rest_ep = input(f"Insert the REST {type} device endpoint: ")
-        tmp_rest_ep_list.append({"v": tmp_device_rest_ep})
+        tmp_device_rest_ep_type = input(f"Insert the REST {type} device endpoint type: ")
+        tmp_rest_ep_list.append({"v": tmp_device_rest_ep, "t": tmp_device_rest_ep_type})
 
     return tmp_rest_ep_list
 
@@ -17,7 +18,8 @@ def _mqtt_endpoints_gathering(type: str) -> list:
 
     for i in range(0, tmp_mqtt_ep_n, 1):
         tmp_device_mqtt_ep = input(f"Insert the MQTT {type} device endpoint: ")
-        tmp_mqtt_ep_list.append({"v": tmp_device_mqtt_ep})
+        tmp_device_mqtt_ep_type = input(f"Insert the MQTT {type} device endpoint type: ")
+        tmp_mqtt_ep_list.append({"v": tmp_device_mqtt_ep, "t": tmp_device_mqtt_ep_type})
 
     return tmp_mqtt_ep_list
 

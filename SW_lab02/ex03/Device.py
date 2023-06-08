@@ -36,9 +36,7 @@ class Device():
                 "r": self.rest_endpoints,
                 "m": self.mqtt_endpoints
             },
-            "in": {
-                "r": self.resources
-            }
+            "rs": self.resources
         }
 
         return pl

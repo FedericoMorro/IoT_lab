@@ -7,7 +7,8 @@ def _rest_endpoints_gathering(type: str) -> list:
 
     for i in range(0, tmp_rest_ep_n, 1):
         tmp_device_rest_ep = input(f"Insert the REST {type} device endpoint: ")
-        tmp_rest_ep_list.append({"v": tmp_device_rest_ep})
+        tmp_device_rest_ep_type = input(f"Insert the REST {type} device endpoint type: ")
+        tmp_rest_ep_list.append({"v": tmp_device_rest_ep, "t": tmp_device_rest_ep_type})
 
     return tmp_rest_ep_list
 
@@ -18,7 +19,8 @@ def _mqtt_endpoints_gathering(type: str) -> list:
 
     for i in range(0, tmp_mqtt_ep_n, 1):
         tmp_device_mqtt_ep = input(f"Insert the MQTT {type} device endpoint: ")
-        tmp_mqtt_ep_list.append({"v": tmp_device_mqtt_ep})
+        tmp_device_mqtt_ep_type = input(f"Insert the MQTT {type} device endpoint type: ")
+        tmp_mqtt_ep_list.append({"v": tmp_device_mqtt_ep, "t": tmp_device_mqtt_ep_type})
 
     return tmp_mqtt_ep_list
 
@@ -39,8 +41,9 @@ def _values_gathering(id) -> Device:
     resrc_list = list()
     resrc_n = int(input("How many types of resources type does the device have? "))
     for i in range(0, resrc_n, 1):
-        tmp_device_resource = input("Insert the device resource type: ")
-        resrc_list.append({"n": tmp_device_resource})
+        tmp_device_resource = input("Insert the device resource name: ")
+        tmp_device_resource_type = input ("Insert the device resource type: ")
+        resrc_list.append({"n": tmp_device_resource, "t": tmp_device_resource_type})
 
     tmp_device = Device(
         id,

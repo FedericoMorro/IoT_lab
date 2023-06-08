@@ -25,12 +25,12 @@ class MQTT_Device():
 
         self._client_id = "Python_MQTT_Device"
 
-        self._mqtt_data = self._mqtt_init()     # {"hostname": ..., "port": ...}
+        self._mqtt_data = self._mqtt_init()
 
         self._mqtt_client = PahoMQTT.Client(self._client_id, clean_session=False)
         self._mqtt_client.on_message = self._callback_on_MQTT_message
 
-        self._mqtt_client.connect(self._mqtt_data["ep"]["m"]["hn"][0]["v"], self._mqtt_data["ep"]["m"]["pt"][0]["v"])
+        self._mqtt_client.connect(self._mqtt_data["hostname"], self._mqtt_data["port"])
         self._mqtt_client.loop_start()
 
         self._thread = Thread(target = self.subscribe)
@@ -53,7 +53,10 @@ class MQTT_Device():
 
     def _mqtt_init(self):
         r = req.get(f"http://{ip_addr}:{port}/")
-        return json.loads(r.text)
+        r_dict = json.loads(r.text)
+        return {"hostname": r_dict["ep"]["m"]["hn"][0]["v"],
+                "port": r_dict["ep"]["m"]["pt"][0]["v"],
+                "base_topic": r_dict["ep"]["m"]["bt"][0]["v"]}
     
 
     def _generate_payload(self) -> dict:
@@ -63,19 +66,17 @@ class MQTT_Device():
                 "r": self.rest_endpoints,
                 "m": self.mqtt_endpoints
             },
-            "in": {
-                "r": self.resources
-            }
+            "rs": self.resources
         }
 
         return pl
 
 
     def subscribe(self):
-        self._mqtt_client.subscribe(f"{self._mqtt_data['ep']['m']['bt'][0]['v']}/devices/{self.device_id}", 2)
+        self._mqtt_client.subscribe(f"{self._mqtt_data['base_topic']}/devices/{self.device_id}", 2)
 
         self._mqtt_client.publish(
-            topic = f"{self._mqtt_data['ep']['m']['bt'][0]['v']}/devices/sub",
+            topic = f"{self._mqtt_data['base_topic']}/devices/sub",
             payload = f"{json.dumps(self._generate_payload())}",
             qos = 2
         )
@@ -84,7 +85,7 @@ class MQTT_Device():
             time.sleep(refresh_time)
 
             self._mqtt_client.publish(
-                topic = f"{self._mqtt_data['ep']['m']['bt'][0]['v']}/devices/upd",
+                topic = f"{self._mqtt_data['base_topic']}/devices/upd",
                 payload = f"{json.dumps(self._generate_payload())}",
                 qos = 2
             )

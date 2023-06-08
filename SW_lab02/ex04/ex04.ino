@@ -32,11 +32,16 @@ const long R0 = 100000, R1 = 100000;
 const double TK = 273.15;
 double temperature;
 
+#define REGISTERING_TIMEOUT 60000   // ms
+int last_registering;
+
+int first_time = 1;
 
 // Functions prototypes
 String registering_payload_encode();
 int registering();
 void refreshing(uint alarm_num);
+String senMlEncode(double val);
 
 
 void setup() {
@@ -52,6 +57,8 @@ void setup() {
         delay(2000);
     }
 
+    last_registering = millis();
+
     Serial.print("Connected with IP address: ");
     Serial.println(WiFi.localIP());
     ITimer1.setInterval(REFRESH_TIME, refreshing);
@@ -60,13 +67,48 @@ void setup() {
 
 void loop() {
 
+    if (first_time && millis() - last_registering > REGISTERING_TIMEOUT) {
+        int ret = registering();
+
+        Serial.print("[DEBUG] Response code: " + String(ret) + "\n");
+        last_registering = millis();
+    }
+
     // Read the temperature
     double v = (double) analogRead(TEMPERATURE_PIN);
     double r = (1023.0 / v - 1.0) * (double)R1;
     temperature = 1.0 / ( (log(r / (double)R0) / (double)B) + (1.0 / ((double)T0 + TK))) - TK;
     Serial.print("[DEBUG] Measured temperature: "); Serial.println(temperature);
 
-    int ret = registering();
+
+    // Create the body
+    body = senMlEncode(temperature);
+
+    // Send the request
+    client.beginRequest();
+    client.post("/log");
+
+    /* 
+     * change session_id in the cookie header according to postman session_id, it will be
+     * automatically reassigned at the first request it makes
+     * 
+     * we use postman session_id so that with a GET request from postman we can see the
+     * log, otherwise, the requests of the Arduino will be saved in another log session
+     * used just for Arduino
+     *
+     * using the same session_id, although it is probably a very bad practice, allows us
+     * to have no issue in visualizing the log
+     */
+    client.sendHeader("Cookie", "session_id=629edc8b148df01e95e953b8641c53fc3c6959f4");
+    client.sendHeader("Content-Type", "text/plain");
+    client.sendHeader("Content-Length", body.length());
+    client.sendHeader("Accept", "*/*");
+    client.sendHeader("Accept-Encoding", "gzip, deflate, br");
+    client.sendHeader("Connection", "keep-alive");
+    client.beginBody();
+    client.print(body);
+    client.endRequest();
+    int ret = client.responseStatusCode();
 
     Serial.print("[DEBUG] Response code: " + String(ret) + "\n");
 
@@ -121,7 +163,12 @@ int registering() {
 
     // Send the request
     client.beginRequest();
-    client.post("/devices/sub");
+    if (first_time) {
+        client.post("/devices/sub");
+        first_time = 0;
+    } else {
+        client.put("/devices/upd");
+    }
 
     /* 
     * change session_id in the cookie header according to postman session_id, it will be
@@ -167,4 +214,12 @@ void refreshing(uint alarm_num) {
     Serial.println();
 
     TIMER_ISR_END(alarm_num);
+}
+
+
+String senMlEncode(double val) {
+    String res = "{\"bn\":\"ArduinoGroup3\",\"e\":[{\"n\":\"temperature\",\"t\":" + String(int(millis()/1000)) + ",\"v\":" + String(val) + ",\"u\":\"Cel\"}]}";
+    Serial.print(res + " "); Serial.println(res.length());
+
+    return res;
 }
