@@ -5,7 +5,6 @@ import paho.mqtt.client as PahoMQTT
 from threading import Thread
 from time import time
 
-import numpy as np
 
 # Server (Catalog) IP and port
 CATALOG_IP = "127.0.0.1"
