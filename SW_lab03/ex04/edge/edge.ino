@@ -15,7 +15,7 @@
  *  CONNECTIVITY FUCNTIONS AND VARIABLES DECLARATIONS
  */
 // Id
-char device_id[] = "IoT_G3_Ard";
+char device_id[] = "ard";
 
 // WiFi
 char ssid[] = SECRET_SSID;
@@ -34,7 +34,7 @@ String broker_address;
 int broker_port;
 
 // MQTT
-const String base_topic = "/tiot/g03/ard";
+const String base_topic;
 String body;
 bool first_sub = true;
 
@@ -45,16 +45,16 @@ int tim_check_mqtt_msg;
 int tim_refresh_catalog;
 int tim_mqtt_pub;
 
-// Json
+// JSON
 const int capacity_sen_ml = JSON_OBJECT_SIZE(2) + JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(4) + 100;
-DynamicJsonDocument doc_snd_sen_ml(capacity_sen_ml);
-DynamicJsonDocument doc_rec_sen_ml(capacity_sen_ml);
+DynamicJsonDocument json_sent_sen_ml(capacity_sen_ml);
+DynamicJsonDocument json_received_sen_ml(capacity_sen_ml);
 
-const int capacity_cat = JSON_OBJECT_SIZE(32) + JSON_ARRAY_SIZE(12) + 100;
-DynamicJsonDocument doc_rec_cat(capacity_cat);
+const int capacity_cat = JSON_OBJECT_SIZE(6) + JSON_ARRAY_SIZE(1) + 100;
+DynamicJsonDocument json_received_catalog(capacity_cat);
 
 const int capacity_cat_subscription = JSON_OBJECT_SIZE(6) + JSON_ARRAY_SIZE(2) + JSON_OBJECT_SIZE(4) + 200;
-DynamicJsonDocument doc_snd_cat_sub(capacity_cat_subscription);
+DynamicJsonDocument json_sent_catalog(capacity_cat_subscription);
 
 
 // Function prototypes
@@ -163,7 +163,6 @@ void setup() {
     lcd.begin(16, 2);
     lcd.setBacklight(255);
     display_state = 1;
-    Scheduler.startLoop(loop_refresh_display);
 }
 
 
@@ -233,79 +232,6 @@ void loop_update_audio_samples_cnt() {
 }
 
 
-void loop_refresh_display() {
-
-    lcd.home();
-    lcd.clear();
-
-    if (display_state) {
-        sprintf(lcd_buffer[0], "T:%.1lf Pres:%d", temperature, presence);
-        sprintf(lcd_buffer[1], "AC:%d%% HT:%d%%", (int) (ac_percentage * 100), (int) (ht_percentage * 100));
-    }
-    else {
-        if (presence) {
-            sprintf(lcd_buffer[0], "AC m:%.1f M:%.1f\%", min_ac_presence, max_ac_presence);
-            sprintf(lcd_buffer[1], "HT m:%.1f M:%.1f\%", min_h_presence, max_h_presence);
-        }
-        else {
-            sprintf(lcd_buffer[0], "AC m:%.1f M:%.1f\%", min_ac_absence, max_ac_absence);
-            sprintf(lcd_buffer[1], "HT m:%.1f M:%.1f\%", min_h_absence, max_h_absence);
-        }
-    }
-
-    display_state = 1 - display_state;
-
-    lcd.setCursor(0, 0);
-    lcd.print(lcd_buffer[0]);
-    lcd.setCursor(0, 1);
-    lcd.print(lcd_buffer[1]);
-
-    delay(3000);
-}
-
-
-void change_max_min() {
-    char a_h, M_m, p_a;
-    float value;
-    String str;
-    
-    str = Serial.readString();
-    str.trim();
-
-    if (sscanf(str.c_str(), "%c %c %c: %f", &a_h, &M_m, &p_a, &value) == 4) {
-        if (a_h == 'a') {
-            if (M_m == 'M') {
-                if (p_a == 'p') {
-                    max_ac_presence = value;
-                } else if (p_a == 'a') {
-                    max_ac_absence = value;
-                }
-            } else if (M_m == 'm') {
-                if (p_a == 'p') {
-                    min_ac_presence = value;
-                } else if (p_a == 'a') {
-                    min_ac_absence = value;
-                }
-            }
-        } else if (a_h == 'h') {
-            if (M_m == 'M') {
-                if (p_a == 'p') {
-                    max_h_presence = value;
-                } else if (p_a == 'a') {
-                    max_h_absence = value;
-                }
-            } else if (M_m == 'm') {
-                if (p_a == 'p') {
-                    min_h_presence = value;
-                } else if (p_a == 'a') {
-                    min_h_absence = value;
-                }
-            }
-        }
-    }
-}
-
-
 /*
  * CONNECTIVITY FUNCTIONS
  */
@@ -365,21 +291,22 @@ void get_mqtt_broker() {
 
     body = http_client.responseBody();
 
-    DeserializationError err = deserializeJson(doc_rec_cat, body.c_str());
+    DeserializationError err = deserializeJson(json_received_catalog, body.c_str());
 
     if (err) {
         Serial.print("deserializeJson() failed with code: ");
         Serial.println(err.c_str());
     }
 
-    const char *tmp = doc_rec_cat["ep"]["m"]["hn"][0]["v"];
+    const char *tmp = json_received_catalog["ep"]["m"]["hn"][0]["v"];
     broker_address = String(tmp);
-    broker_port = doc_rec_cat["ep"]["m"]["pt"][0]["v"];
+    broker_port = json_received_catalog["ep"]["m"]["pt"][0]["v"];
 
-    const char *tmp_ = doc_rec_cat["ep"]["m"]["bt"][0]["v"];
+    tmp = json_received_catalog["ep"]["m"]["bt"][0]["v"];
     catalog_base_topic = String(tmp) + String("/devices");
+    base_topic = catalog_base_topic + String("/") + String(device_id);
 
-    Serial.print("[DEBUG] Broker info: "); Serial.print(broker_address); Serial.print(":"); Serial.println(broker_port);
+    Serial.println("[DEBUG] Broker info: " + broker_address + ":" + broker_port + "; base_topic: " + base_topic);
 }
 
 
@@ -411,15 +338,43 @@ void refresh_catalog_subscription() {
         mqtt_reconnect();
     }
 
-    // Create body
-    doc_snd_cat_sub.clear();
-    doc_snd_cat_sub["id"] = device_id;
-    doc_snd_cat_sub["ep"]["m"]["p"][0]["v"] = base_topic + String("/temp");
-    doc_snd_cat_sub["ep"]["m"]["s"][0]["v"] = base_topic + String("/led");
-    doc_snd_cat_sub["in"]["r"][0]["n"] = "pub/temp";
-    doc_snd_cat_sub["in"]["r"][1]["n"] = "sub/led";
+    /*
+     * pub: /temp, /pir, /mic
+     * sub: /ac, /ht, /lcd
+     */
 
-    serializeJson(doc_snd_cat_sub, output);
+    // Create body
+    json_sent_catalog.clear();
+    json_sent_catalog["id"] = device_id;
+
+    json_sent_catalog["ep"]["m"]["p"][0]["v"] = base_topic + String("/temp");
+    json_sent_catalog["ep"]["m"]["p"][0]["t"] = String("temp");
+    json_sent_catalog["ep"]["m"]["p"][1]["v"] = base_topic + String("/pir");
+    json_sent_catalog["ep"]["m"]["p"][1]["t"] = String("pir");
+    json_sent_catalog["ep"]["m"]["p"][2]["v"] = base_topic + String("/mic");
+    json_sent_catalog["ep"]["m"]["p"][2]["t"] = String("mic");
+
+    json_sent_catalog["ep"]["m"]["s"][0]["v"] = base_topic + String("/ac");
+    json_sent_catalog["ep"]["m"]["s"][0]["t"] = String("ac");
+    json_sent_catalog["ep"]["m"]["s"][1]["v"] = base_topic + String("/ht");
+    json_sent_catalog["ep"]["m"]["s"][1]["t"] = String("ht");
+    json_sent_catalog["ep"]["m"]["s"][2]["v"] = base_topic + String("/lcd");
+    json_sent_catalog["ep"]["m"]["s"][2]["t"] = String("lcd");
+
+    json_sent_catalog["rs"][0]["n"] = "temperature";
+    json_sent_catalog["rs"][0]["t"] = "temp";
+    json_sent_catalog["rs"][1]["n"] = "pir_presence";
+    json_sent_catalog["rs"][1]["t"] = "pir";
+    json_sent_catalog["rs"][2]["n"] = "mic_presence";
+    json_sent_catalog["rs"][2]["t"] = "mic";
+    json_sent_catalog["rs"][3]["n"] = "air_cond";
+    json_sent_catalog["rs"][3]["t"] = "ac";
+    json_sent_catalog["rs"][3]["n"] = "heating";
+    json_sent_catalog["rs"][3]["t"] = "ht";
+    json_sent_catalog["rs"][4]["n"] = "lcd";
+    json_sent_catalog["rs"][4]["t"] = "lcd";
+
+    serializeJson(json_sent_catalog, output);
 
     Serial.println(output);
 
@@ -441,13 +396,13 @@ void refresh_catalog_subscription() {
 String sen_ml_encode(String dev, float val, String unit) {
     String output;
 
-    doc_snd_sen_ml.clear();
-    doc_snd_sen_ml["bn"] = device_id;
-    doc_snd_sen_ml["e"][0]["n"] = dev;
-    doc_snd_sen_ml["e"][0]["t"] = int(millis()/1000);
-    doc_snd_sen_ml["e"][0]["v"] = val;
-    doc_snd_sen_ml["e"][0]["u"] = unit;
+    json_sent_sen_ml.clear();
+    json_sent_sen_ml["bn"] = device_id;
+    json_sent_sen_ml["e"][0]["n"] = dev;
+    json_sent_sen_ml["e"][0]["t"] = int(millis()/1000);
+    json_sent_sen_ml["e"][0]["v"] = val;
+    json_sent_sen_ml["e"][0]["u"] = unit;
 
-    serializeJson(doc_snd_sen_ml, output);
+    serializeJson(json_sent_sen_ml, output);
     return output;
 }
