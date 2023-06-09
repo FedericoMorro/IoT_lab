@@ -15,17 +15,17 @@
 
 
 struct resource {
-    String name, type;
+    String name, type, ep;
 };
 
 
-resource temp_res = {"temperature", "t"};
-resource pir_res = {"pir_presence", "p"};
-resource mic_res = {"mic_presence", "m"};
+resource temp_res = {"temperature", "t", "/t"};
+resource pir_res = {"pir_presence", "p", "/p"};
+resource mic_res = {"mic_presence", "m", "/m"};
 
-resource ac_res = {"air_cond", "a"};
-resource ht_res = {"heating", "h"};
-resource lcd_res = {"lcd", "l"};
+resource ac_res = {"air_cond", "a", "/a"};
+resource ht_res = {"heating", "h", "/h"};
+resource lcd_res = {"lcd", "l", "/l"};
 
 
 /*
@@ -51,7 +51,7 @@ String broker_address;
 int broker_port;
 
 // MQTT
-const String base_topic;
+const String base_topic = "/tiot/g03/" + String(device_id);
 String body;
 bool first_sub = true;
 
@@ -203,8 +203,6 @@ void loop() {
 
     Serial.print("[DEBUG] PIR presence: "); Serial.print(pir_presence);
     Serial.print(";\tMicrophone presence: "); Serial.println(microphone_presence);
-
-    
     
     delay(2000);
 }
@@ -216,14 +214,21 @@ void compute_temperature() {
     temperature = 1.0 / ( (log(r / (double)R0) / (double)B) + (1.0 / ((double)T0 + TK))) - TK;
     Serial.print("[DEBUG] Measured temperature: "); Serial.println(temperature);
     
-    // TODO: send to MQTT temp
+    String output = sen_ml_encode(temp_res.name, temperature, "Cel");
+
+    mqtt_client.publish((base_topic + temp_res.ep).c_str(), output.c_str());
 }
 
 
 void pir_presence_isr() {
+    uint8_t prev_pir_pres = pir_presence;
     pir_presence = 1;
 
-    // TODO: update pir value on mqtt
+    String output = sen_ml_encode(pir_res.name, pir_presence, "");
+
+    if (pir_presence != prev_pir_pres) {
+        mqtt_client.publish((base_topic + pir_res.ep).c_str(), output.c_str());
+    }
 }
 
 
@@ -259,8 +264,10 @@ void loop_update_audio_samples_cnt() {
     uint8_t prev_mic_pres = microphone_presence;
     microphone_presence = (sum >= n_sound_events) ? 1:0;
 
+
     if (prev_mic_pres != microphone_presence) {
-        // TODO: send microphone_presence val on MQTT
+        String output = sen_ml_encode(mic_res.name, microphone_presence, "");
+        mqtt_client.publish((base_topic + mic_res.ep).c_str(), output.c_str());
     }
 
     delay(sound_interval / BUFFER_SIZE_SAMPLES_CNT);
@@ -344,7 +351,6 @@ void get_mqtt_broker() {
 
     tmp = json_received_catalog["ep"]["m"]["bt"][0]["v"];
     catalog_base_topic = String(tmp) + String("/devices");
-    base_topic = catalog_base_topic + String("/") + String(device_id);
 
     #if SERIAL_DEBUG
         Serial.println("[DEBUG] Broker info: " + broker_address + ":" + broker_port + "; base_topic: " + base_topic);
@@ -390,18 +396,18 @@ void refresh_catalog_subscription() {
     json_sent_catalog.clear();
     json_sent_catalog["id"] = device_id;
 
-    json_sent_catalog["ep"]["m"]["p"][0]["v"] = base_topic + String("/t");
+    json_sent_catalog["ep"]["m"]["p"][0]["v"] = base_topic + temp_res.ep;
     json_sent_catalog["ep"]["m"]["p"][0]["t"] = temp_res.type;
-    json_sent_catalog["ep"]["m"]["p"][1]["v"] = base_topic + String("/p");
+    json_sent_catalog["ep"]["m"]["p"][1]["v"] = base_topic + pir_res.ep;
     json_sent_catalog["ep"]["m"]["p"][1]["t"] = pir_res.type;
-    json_sent_catalog["ep"]["m"]["p"][2]["v"] = base_topic + String("/m");
+    json_sent_catalog["ep"]["m"]["p"][2]["v"] = base_topic + mic_res.ep;
     json_sent_catalog["ep"]["m"]["p"][2]["t"] = mic_res.type;
 
-    json_sent_catalog["ep"]["m"]["s"][0]["v"] = base_topic + String("/a");
+    json_sent_catalog["ep"]["m"]["s"][0]["v"] = base_topic + ac_res.ep;
     json_sent_catalog["ep"]["m"]["s"][0]["t"] = ac_res.type;
-    json_sent_catalog["ep"]["m"]["s"][1]["v"] = base_topic + String("/h");
+    json_sent_catalog["ep"]["m"]["s"][1]["v"] = base_topic + ht_res.ep;
     json_sent_catalog["ep"]["m"]["s"][1]["t"] = ht_res.type;
-    json_sent_catalog["ep"]["m"]["s"][2]["v"] = base_topic + String("/l");
+    json_sent_catalog["ep"]["m"]["s"][2]["v"] = base_topic + lcd_res.ep;
     json_sent_catalog["ep"]["m"]["s"][2]["t"] = lcd_res.type;
 
     json_sent_catalog["rs"][0]["n"] = temp_res.name;
@@ -419,7 +425,9 @@ void refresh_catalog_subscription() {
 
     serializeJson(json_sent_catalog, output);
 
-    Serial.println(output);
+    #if SERIAL_DEBUG
+        Serial.println("[DEBUG] " + output);
+    #endif
 
     // Publish the subscription
     if (first_sub) {
@@ -436,7 +444,7 @@ void refresh_catalog_subscription() {
 }
 
 
-String sen_ml_encode(String dev, float val, String unit) {
+String sen_ml_encode(String dev, double val, String unit) {
     String output;
 
     json_sent_sen_ml.clear();

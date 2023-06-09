@@ -13,6 +13,8 @@ CATALOG_PORT = 8080
 
 CATALOG_URI = f"http://{CATALOG_IP}:{CATALOG_PORT}"
 
+CATALOG_SUB_TIMEOUT = 60
+
 
 class Controller():
     def __init__(self):
@@ -28,6 +30,17 @@ class Controller():
             "s": [],
             "p": []
         }
+        self._resources = [
+            {"n": "set_min_ac_presence", "t": "mi_ap"},
+            {"n": "set_max_ac_presence", "t": "ma_ap"},
+            {"n": "set_min_ac_absence", "t": "mi_aa"},
+            {"n": "set_max_ac_absence", "t": "ma_aa"},
+            {"n": "set_min_ht_presence", "t": "mi_hp"},
+            {"n": "set_max_ht_presence", "t": "ma_hp"},
+            {"n": "set_min_ht_absence", "t": "mi_ha"},
+            {"n": "set_max_ht_absence", "t": "ma_ha"},
+            {"n": "set_pir_timeout", "t": "p_to"}
+        ]
         self._info = {
             "d": "IoT Devices Controller"
         }
@@ -43,7 +56,7 @@ class Controller():
         self._mqtt_client = PahoMQTT.Client(self._service_id, clean_session = False)
         self._mqtt_client.on_message = self._callback_mqtt_on_message
 
-        self._sub_upd_thread = Thread(target = self._subscribe())
+        self._sub_upd_thread = Thread(target = self._catalog_subscribe())
         self._sub_upd_thread.start()
 
         self._mqtt_client.connect(self._mqtt_broker["hn"], self._mqtt_broker["pt"])
@@ -88,9 +101,9 @@ class Controller():
         pl = {
             "id": self._service_id,
             "ep": {
-                "r": self._rest_ep,
                 "m": self._mqtt_ep
             },
+            "rs": self._resources,
             "in": self._info
         }
 
@@ -112,11 +125,11 @@ class Controller():
             return
 
 
-    def _subscribe(self):
+    def _catalog_subscribe(self):
         req.post(f"{CATALOG_URI}/services/sub", data = json.dumps(self.payload))
 
         while True:
-            time.sleep(60)
+            time.sleep(CATALOG_SUB_TIMEOUT)
             req.put(f"{CATALOG_URI}/services/upd", data = json.dumps(self.payload))
     
 
