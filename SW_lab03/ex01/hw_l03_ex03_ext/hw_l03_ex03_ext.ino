@@ -58,6 +58,10 @@ DynamicJsonDocument json_received_catalog(capacity_cat);
 const int capacity_cat_subscription = JSON_OBJECT_SIZE(6) + JSON_ARRAY_SIZE(2) + JSON_OBJECT_SIZE(4) + 200;
 DynamicJsonDocument json_sent_catalog(capacity_cat_subscription);
 
+// Types of resources/end_point
+const char[] led_type = "l";
+const char[] temperature_type = "t";
+
 
 // Function prototypes
 void refresh_catalog_subscription();
@@ -98,7 +102,7 @@ void callback(char *topic, byte *payload, unsigned int length) {
             Serial.println(err.c_str());
         }
 
-        if (json_received_sen_ml["e"][0]["n"] == "led") {
+        if (json_received_sen_ml["e"][0]["n"] == led_type) {
             if (json_received_sen_ml["e"][0]["v"] == 1) {
                 led_state = 1;
             } else if (json_received_sen_ml["e"][0]["v"] == 0) {
@@ -198,14 +202,14 @@ void refresh_catalog_subscription() {
     json_sent_catalog["id"] = device_id;
     // insert end_points
     json_sent_catalog["ep"]["m"]["p"][0]["v"] = base_topic + String("/temp");
-    json_sent_catalog["ep"]["m"]["p"][0]["t"] = "t";
+    json_sent_catalog["ep"]["m"]["p"][0]["t"] = temperature_type;
     json_sent_catalog["ep"]["m"]["s"][0]["v"] = base_topic + String("/led");
-    json_sent_catalog["ep"]["m"]["s"][0]["t"] = "l";
+    json_sent_catalog["ep"]["m"]["s"][0]["t"] = led_type;
     // insert resources
     json_sent_catalog["rs"][0]["n"] = "temperature";
-    json_sent_catalog["rs"][0]["t"] = "t";
+    json_sent_catalog["rs"][0]["t"] = temperature_type;
     json_sent_catalog["rs"][1]["n"] = "led";
-    json_sent_catalog["rs"][1]["t"] = "l";
+    json_sent_catalog["rs"][1]["t"] = led_type;
 
     serializeJson(json_sent_catalog, output);
 
