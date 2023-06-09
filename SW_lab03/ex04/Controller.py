@@ -163,15 +163,28 @@ class Controller():
         
         # Given resources names, find associated types and mqtt end_point
         for resource in arduino["rs"]:
-            res_name = resource["n"]
+            name = resource["n"]
 
-            if res_name in self._arduino_resources["pub"]:
-                self._arduino_resources["pub"][res_name]["type"] = resource["t"]
-                self._arduino_resources["pub"][res_name]["topics"] = []
+            # Add mqtt end_point on which arduino publishes
+            if name in self._arduino_resources["pub"]:
+                type = resource["t"]
+                self._arduino_resources["pub"][name]["type"] = type
 
-            if res_name in self._arduino_resources["sub"]:
-                self._arduino_resources["sub"][res_name]["type"] = resource["t"]
-                self._arduino_resources["sub"][res_name]["topics"] = []
+                self._arduino_resources["pub"][name]["topics"] = []
+                for topic in arduino["ep"]["m"]["p"]:
+                    if topic["t"] == type:
+                        self._arduino_resources["pub"][name]["topics"].append(topic["v"])
+
+            # Add mqtt end_point on which arduino is subscribed
+            if name in self._arduino_resources["sub"]:
+                type = resource["t"]
+                self._arduino_resources["sub"][name]["type"] = type
+
+                self._arduino_resources["sub"][name]["topics"] = []
+                for topic in arduino["ep"]["m"]["s"]:
+                    if topic["t"] == type:
+                        self._arduino_resources["sub"][name]["topics"].append(topic["v"])
+
 
 
     def _callback_mqtt_on_message(self, paho_mqtt, userdata, msg):
