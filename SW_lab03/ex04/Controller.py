@@ -5,13 +5,14 @@ import paho.mqtt.client as PahoMQTT
 from threading import Thread
 from time import time
 
-import numpy as np
 
 # Server (Catalog) IP and port
 CATALOG_IP = "127.0.0.1"
 CATALOG_PORT = 8080
 
-catalog_uri = f"http://{CATALOG_IP}:{CATALOG_PORT}"
+CATALOG_URI = f"http://{CATALOG_IP}:{CATALOG_PORT}"
+
+CATALOG_SUB_TIMEOUT = 60
 
 
 class Controller():
@@ -24,16 +25,21 @@ class Controller():
 
         # Basic service data
         self._service_id = "IoT_Lab_G3_Controller"
-        self._rest_ep = {
-            "r": [],
-            "c": [],
-            "u": [],
-            "d": []
-        }
         self._mqtt_ep = {
             "s": [],
             "p": []
         }
+        self._resources = [
+            {"n": "set_min_ac_presence", "t": "mi_ap"},
+            {"n": "set_max_ac_presence", "t": "ma_ap"},
+            {"n": "set_min_ac_absence", "t": "mi_aa"},
+            {"n": "set_max_ac_absence", "t": "ma_aa"},
+            {"n": "set_min_ht_presence", "t": "mi_hp"},
+            {"n": "set_max_ht_presence", "t": "ma_hp"},
+            {"n": "set_min_ht_absence", "t": "mi_ha"},
+            {"n": "set_max_ht_absence", "t": "ma_ha"},
+            {"n": "set_pir_timeout", "t": "p_to"}
+        ]
         self._info = {
             "d": "IoT Devices Controller"
         }
@@ -49,19 +55,13 @@ class Controller():
         self._mqtt_client = PahoMQTT.Client(self._service_id, clean_session = False)
         self._mqtt_client.on_message = self._callback_mqtt_on_message
 
-        self._sub_upd_thread = Thread(target = self._subscribe())
+        self._sub_upd_thread = Thread(target = self._catalog_subscribe())
         self._sub_upd_thread.start()
 
         self._mqtt_client.connect(self._mqtt_broker["hn"], self._mqtt_broker["pt"])
         self._mqtt_client.loop_start()
 
-        # Temperature computation constants
-        self._R0 = 100000
-        self._R1 = 100000
-        self._B  = 4275
-        self._T0 = 25
-        self._TK = 273.15
-
+        # Temperature
         self._temperature = 0
 
         # Fan information
@@ -100,9 +100,9 @@ class Controller():
         pl = {
             "id": self._service_id,
             "ep": {
-                "r": self._rest_ep,
                 "m": self._mqtt_ep
             },
+            "rs": self._resources,
             "in": self._info
         }
 
@@ -110,7 +110,7 @@ class Controller():
     
 
     def _get_catalog(self):
-        reply = req.get(catalog_uri)
+        reply = req.get(CATALOG_URI)
         try:
             get_output = json.loads(reply.text)
             return get_output
@@ -124,13 +124,12 @@ class Controller():
             return
 
 
-    # TODO: check and finish this function -> better integration with Catalog?
-    def _subscribe(self):
-        req.post(catalog_uri, data = json.dumps(self.payload))
+    def _catalog_subscribe(self):
+        req.post(f"{CATALOG_URI}/services/sub", data = json.dumps(self.payload))
 
         while True:
-            time.sleep(60)
-            req.put(catalog_uri, data = json.dumps(self.payload))
+            time.sleep(CATALOG_SUB_TIMEOUT)
+            req.put(f"{CATALOG_URI}/services/upd", data = json.dumps(self.payload))
     
 
     def _callback_mqtt_on_message(self, paho_mqtt, userdata, msg):
@@ -179,8 +178,7 @@ class Controller():
 
 
     def _temperature_callback(self, val):
-        r = (1023 / val - 1) * self._R1
-        self._temperature = 1 / ( (np.log(r / self._R0) / self._B) + (1.0 / (self._T0 + self._TK))) - self._TK
+        self._temperature = val
 
         if self._pir_presence or self._mic_presence:
             self._ac_pwm_value(self._min_ac_presence, self._max_ac_presence)
