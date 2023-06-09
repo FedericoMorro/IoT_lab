@@ -52,15 +52,15 @@ const int capacity_sen_ml = JSON_OBJECT_SIZE(2) + JSON_ARRAY_SIZE(1) + JSON_OBJE
 DynamicJsonDocument json_sent_sen_ml(capacity_sen_ml);
 DynamicJsonDocument json_received_sen_ml(capacity_sen_ml);
 
-const int capacity_cat = JSON_OBJECT_SIZE(6) + JSON_ARRAY_SIZE(1) + 100;
+const int capacity_cat = JSON_OBJECT_SIZE(6) + JSON_ARRAY_SIZE(1) + 200;
 DynamicJsonDocument json_received_catalog(capacity_cat);
 
 const int capacity_cat_subscription = JSON_OBJECT_SIZE(6) + JSON_ARRAY_SIZE(2) + JSON_OBJECT_SIZE(4) + 200;
 DynamicJsonDocument json_sent_catalog(capacity_cat_subscription);
 
 // Types of resources/end_point
-const char[] led_type = "l";
-const char[] temperature_type = "t";
+const char led_type[] = "l";
+const char temperature_type[] = "t";
 
 
 // Function prototypes
@@ -85,12 +85,11 @@ void callback(char *topic, byte *payload, unsigned int length) {
             Serial.println(err.c_str());
         }
 
-        if (json_received_catalog["in"]["e"] == 0) {
+        if ((int) json_received_catalog["in"]["e"] == 0) {
             Serial.println("[DEBUG] Refreshed subscribtion to Catalog");
             return;
         } else {
-            Serial.println("[DEBUG] Error in refresh to Catalog");
-            refresh_catalog_subscription();
+            Serial.println("[DEBUG] Error in refresh to Catalog: ");
         }
 
     }
@@ -103,9 +102,9 @@ void callback(char *topic, byte *payload, unsigned int length) {
         }
 
         if (json_received_sen_ml["e"][0]["n"] == led_type) {
-            if (json_received_sen_ml["e"][0]["v"] == 1) {
+            if ((int) json_received_sen_ml["e"][0]["v"] == 1) {
                 led_state = 1;
-            } else if (json_received_sen_ml["e"][0]["v"] == 0) {
+            } else if ((int) json_received_sen_ml["e"][0]["v"] == 0) {
                 led_state = 0;
             }
             digitalWrite(LED_PIN, led_state);
@@ -180,7 +179,7 @@ void publish_temperature_reading() {
     Serial.print("[DEBUG] Measured temperature: "); Serial.println(temperature);
 
     // Create body
-    body = sen_ml_encode("temperature", (float) temperature, "Cel");
+    body = sen_ml_encode(temperature_type, (float) temperature, "Cel");
 
     // Publish temperature reading
     if (mqtt_client.state() != MQTT_CONNECTED) {
@@ -213,16 +212,18 @@ void refresh_catalog_subscription() {
 
     serializeJson(json_sent_catalog, output);
 
-    Serial.println(output);
-
     // Publish the subscription
     if (first_sub) {
         mqtt_client.publish((catalog_base_topic + String("/sub")).c_str(), output.c_str());
         first_sub = false;
-        Serial.println("[DEBUG] Try subscribtion to Catalog");
+
+        Serial.println("[DEBUG] Try subscribtion to Catalog ");
+        Serial.println(catalog_base_topic + String("/sub") + " : " + output);
     } else {
         mqtt_client.publish((catalog_base_topic + String("/upd")).c_str(), output.c_str());
+
         Serial.println("[DEBUG] Try refresh to Catalog");
+        Serial.println(catalog_base_topic + String("/upd") + " : " + output);
     }
 }
 

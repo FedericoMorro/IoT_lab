@@ -6,7 +6,7 @@ import time
 import threading
 
 
-CATALOG_IP_ADDR = "127.0.0.1"
+CATALOG_IP_ADDR = "192.168.151.123"
 CATALOG_PORT = 8080
 
 DB_NAME = "db_catalog.db"
@@ -99,40 +99,37 @@ class Catalog():
                 mqtt_client= self._mqtt_client
             )
 
+            # Perform subscription or refresh
+            if operation == "sub":
+                self.insert_item(
+                    json_dict= input_dict,
+                    type= type,
+                    timestamp= int(time.time()),
+                    err_handler= mqtt_err_handler
+                )
+            elif operation == "upd":
+                self.update_item(
+                    json_dict= input_dict,
+                    type= type,
+                    timestamp= int(time.time()),
+                    err_handler= mqtt_err_handler
+                )
+
+            # Publish response message
+            self._mqtt_client.publish(
+                topic= f"{self._base_topic}/{type}s/{input_dict['id']}",
+                payload= self.json_dict_to_str({"e": 0}, mqtt_err_handler),
+                qos= 2
+            )
+
+            print(f"MQTT: message sent on {self._base_topic}/{type}s/{input_dict['id']}: {self.json_dict_to_str({'in': {'e': 0}}, mqtt_err_handler)}")
+        
         except KeyError as exc:
             print(f"ERROR: Missing or wrong key in input JSON: {exc}")
-            return
         except ValueError as exc:
             print(f"ERROR: Error in input JSON to dictionary conversion: {exc}")
-            return
         except Exception as exc:
             print(f"ERROR: An exception occurred: {exc}")
-            return
-
-        # Perform subscription or refresh
-        if operation == "sub":
-            self.insert_item(
-                json_dict= input_dict,
-                type= type,
-                timestamp= int(time.time()),
-                err_handler= mqtt_err_handler
-            )
-        elif operation == "ref":
-            self.update_item(
-                json_dict= input_dict,
-                type= type,
-                timestamp= int(time.time()),
-                err_handler= mqtt_err_handler
-            )
-
-        # Publish response message
-        self._mqtt_client.publish(
-            topic= f"{self._base_topic}/{type}s/{input_dict['id']}",
-            payload= self.json_dict_to_str({"e": 0}, mqtt_err_handler),
-            qos= 2
-        )
-
-        print(f"MQTT: message sent on {self._base_topic}/{type}s/{input_dict['id']}: {self.json_dict_to_str({'in': {'e': 0}}, mqtt_err_handler)}")
 
 
 
@@ -186,20 +183,20 @@ class Catalog():
         
             input_dict = json.loads(input_str)
 
+            # Add the new item to the database
+            self.insert_item(
+                json_dict= input_dict,
+                type= uri[0].removesuffix("s"),
+                timestamp= int(time.time()),
+                err_handler= rest_err_handler
+            )
+            
+            return f"Operation on {uri[0].removesuffix('s')}:{input_dict['id']} correctly performed"
+        
         except ValueError as exc:
             raise cherrypy.HTTPError(400, f"Error in input JSON to dictionary conversion: {exc}")
         except Exception as exc:
             raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
-
-        # Add the new item to the database
-        self.insert_item(
-            json_dict= input_dict,
-            type= uri[0].removesuffix("s"),
-            timestamp= int(time.time()),
-            err_handler= rest_err_handler
-        )
-        
-        return f"Operation on {uri[0].removesuffix('s')}:{input_dict['id']} correctly performed"
 
 
     def PUT(self, *uri, **params):      # update
@@ -217,20 +214,20 @@ class Catalog():
         
             input_dict = json.loads(input_str)
 
+            # Update item
+            self.update_item(
+                json_dict= input_dict,
+                type= uri[0].removesuffix("s"),
+                timestamp= int(time.time()),
+                err_handler= rest_err_handler
+            )
+            
+            return f"Operation on {uri[0].removesuffix('s')}:{input_dict['id']} correctly performed"
+
         except ValueError as exc:
             raise cherrypy.HTTPError(400, f"Error in input JSON to dictionary conversion: {exc}")
         except Exception as exc:
             raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
-
-        # Update item
-        self.update_item(
-            json_dict= input_dict,
-            type= uri[0].removesuffix("s"),
-            timestamp= int(time.time()),
-            err_handler= rest_err_handler
-        )
-        
-        return f"Operation on {uri[0].removesuffix('s')}:{input_dict['id']} correctly performed"
 
 
     def DELETE(self, *uri, **params):   # delete
@@ -248,10 +245,11 @@ class Catalog():
                 err_handler= rest_err_handler
             )
 
+            return f"Operation on {uri[0].removesuffix('s')}:{uri[1]} correctly performed"
+        
         except Exception as exc:
             raise cherrypy.HTTPError(500, f"An exception occurred: {exc}")
         
-        return f"Operation on {uri[0].removesuffix('s')}:{uri[1]} correctly performed"
             
 
 
@@ -292,10 +290,8 @@ class Catalog():
 
         except KeyError as exc:
             err_handler.notify(400, f"Missing or wrong key in JSON file: {exc}")
-            return
         except Exception as exc:
             err_handler.notify(500, f"An exception occurred: {exc}")
-            return
         
 
     def update_item(self, json_dict, type, timestamp, err_handler):
@@ -319,10 +315,8 @@ class Catalog():
         
         except KeyError as exc:
             err_handler.notify(400, f"Missing or wrong key in JSON file: {exc}")
-            return
         except Exception as exc:
             err_handler.notify(500, f"An exception occurred: {exc}")
-            return
         
 
 
@@ -339,7 +333,6 @@ class Catalog():
     def get_item(self, type, item_id, err_handler):
         if not self.is_present(type, item_id, err_handler):
             err_handler.notify(400, f"Item {type}:{item_id} not present in the catalog (get)")
-            return
 
         if type == "device":
             return self.get_device(item_id, err_handler)
@@ -367,7 +360,6 @@ class Catalog():
     def delete_item(self, type, item_id, err_handler):
         if not self.is_present(type, item_id, err_handler):
             err_handler.notify(400, f"Item {type}:{item_id} not present in the catalog (get)")
-            return
 
         if type == "device":
             self.delete_item_referenced_tables(type, item_id, "device_end_points", err_handler)
@@ -425,10 +417,8 @@ class Catalog():
         
         except KeyError as exc:
             err_handler.notify(400, f"Missing or wrong key in JSON file: {exc}")
-            return
         except Exception as exc:
             err_handler.notify(500, f"An exception occurred: {exc}")
-            return
 
 
     def insert_service(self, service_id, timestamp, end_points_dict, resources_list, description, err_handler):
@@ -466,10 +456,8 @@ class Catalog():
         
         except KeyError as exc:
             err_handler.notify(400, f"Missing or wrong key in JSON file: {exc}")
-            return
         except Exception as exc:
             err_handler.notify(500, f"An exception occurred: {exc}")
-            return
         
 
     def insert_resources(self, type, item_id, resources_list, err_handler):
@@ -483,10 +471,8 @@ class Catalog():
         
         except KeyError as exc:
             err_handler.notify(400, f"Missing or wrong key in JSON file: {exc}")
-            return
         except Exception as exc:
             err_handler.notify(500, f"An exception occurred: {exc}")
-            return
         
 
 
@@ -589,7 +575,7 @@ class Catalog():
             resource = row[0]
             rs_type = row[1]
 
-            rs_list.append({"v": resource, "t": rs_type})
+            rs_list.append({"n": resource, "t": rs_type})
 
         return rs_list    
     
@@ -634,7 +620,6 @@ class Catalog():
         except sqlite3.Error as err:
             print(err)
             err_handler.notify(500, "Error in connection to the database")
-            return
 
         try:
             cursor = connection.cursor()
@@ -643,7 +628,6 @@ class Catalog():
         except sqlite3.Error as err:
             print(err)
             err_handler.notify(500, f"Error in querying the database\nQuery:\n{query}")
-            return
 
         if is_select:
             output = cursor.fetchall()
@@ -651,7 +635,7 @@ class Catalog():
             output = cursor.rowcount
             if output < 0:
                 err_handler.notify(500, f"Error in database transaction\nQuery:\n{query}")
-                return
+
 
         cursor.close()
         connection.close()
@@ -663,14 +647,14 @@ class Catalog():
     def json_dict_to_str(self, json_dict, err_handler):
         try:
             json_str = json.dumps(json_dict)
+            
+            return json_str
+        
         except ValueError as exc:
             err_handler.notify(500, f"Error in dictionary to output JSON conversion: {exc}")
-            return
         except Exception as exc:
             err_handler.notify(500, f"An exception occurred: {exc}")
-            return
         
-        return json_str
     
 
 

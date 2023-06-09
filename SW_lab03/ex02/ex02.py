@@ -5,7 +5,7 @@ import requests
 import json
 
 
-CATALOG_URI = "http://192.0.0.1:8080"
+CATALOG_URI = "http://192.168.151.123:8080"
 
 
 class SubscriberService():
@@ -25,6 +25,7 @@ class SubscriberService():
 
         self.get_mqtt_broker()
 
+        print(f"Try to connect to MQTT broker {self._broker_hostname}:{self._broker_port}")
         self._mqtt_client.connect(self._broker_hostname, self._broker_port)
         self._mqtt_client.loop_start()
 
@@ -37,8 +38,6 @@ class SubscriberService():
 
         for topic_type_device in self._subscribed_topics_type_device:
             self._mqtt_client.subscribe(topic_type_device[0], qos= 2)
-
-
 
 
     def __del__(self):
@@ -59,8 +58,7 @@ class SubscriberService():
         print(f"MQTT message received on topic: {msg.topic}")
 
         for data in input_dict["e"]:
-            if data["n"] == "temperature":
-                print(f'Timestamp: {data["t"]}: {data["v"]} {data["u"]}')
+            print(f'Device: {input_dict["bn"]}\tTemperature: {data["v"]} {data["u"]}\tTimestamp: {data["t"]}')
 
 
     
@@ -69,10 +67,11 @@ class SubscriberService():
         requests.post(f"{self._catalog_uri}/services/sub", data= self.payload_catalog_subscription())
 
         while True:
+            time.sleep(self._REFRESH_DELAY)
+            
             # Refresh subscription
             requests.put(f"{self._catalog_uri}/services/upd", data= self.payload_catalog_subscription())
             
-            time.sleep(self._REFRESH_DELAY)
 
 
     def payload_catalog_subscription(self):
@@ -80,7 +79,7 @@ class SubscriberService():
         payload_dict["id"] = self._service_id
         payload_dict["ep"] = {}
         payload_dict["rs"] = []
-        payload_dict["in"]["d"] = "Read temperature from sensors"
+        payload_dict["in"] = {"d": "Read temperature from sensors"}
 
         return self.json_dict_to_str(payload_dict)            
 
@@ -89,8 +88,8 @@ class SubscriberService():
     def get_mqtt_broker(self):
         try:
             payload = requests.get(self._catalog_uri)
-
-            input_dict = json.loads(payload)
+            
+            input_dict = json.loads(payload.text)
 
             self._broker_hostname = input_dict["ep"]["m"]["hn"][0]["v"]
             self._broker_port = input_dict["ep"]["m"]["pt"][0]["v"]
@@ -109,7 +108,7 @@ class SubscriberService():
             # Get all devices subscripted to the Catalog
             payload = requests.get(self._catalog_uri + "/devices")
 
-            input_dict = json.loads(payload)
+            input_dict = json.loads(payload.text)
 
             # Loop over devices
             for device in input_dict:
@@ -119,7 +118,7 @@ class SubscriberService():
                 has_temp = False
                 for resource in device["rs"]:
                     if resource["n"] == "temperature":
-                        ep_type = resource["v"]
+                        ep_type = resource["t"]
                         has_temp = True
 
                 # If so, find the end_point which corresponds to the type found in the resources
@@ -140,12 +139,14 @@ class SubscriberService():
     def json_dict_to_str(self, json_dict):
         try:
             json_str = json.dumps(json_dict)
+
+            return json_str
+        
         except ValueError as exc:
             print(f"Error in dictionary to output JSON conversion: {exc}")
         except Exception as exc:
             print(f"An exception occurred: {exc}")
         
-        return json_str
 
 
 
