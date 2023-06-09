@@ -6,6 +6,10 @@ from threading import Thread
 from time import time
 
 
+# Arudino ID
+ARDUINO_ID = "ard"
+
+
 # Server (Catalog) IP and port
 CATALOG_IP = "127.0.0.1"
 CATALOG_PORT = 8080
@@ -60,6 +64,17 @@ class Controller():
 
         self._mqtt_client.connect(self._mqtt_broker["hn"], self._mqtt_broker["pt"])
         self._mqtt_client.loop_start()
+
+        self._arduino_resources = {
+            "pub": {
+                "temperature": {}, "pir_presence": {}, "mic_presence": {}
+            },
+            "sub": {
+                "air_cond": {}, "heating": {}, "lcd": {}
+            }
+        }
+        # Get arduino resources
+        self._get_arduino_resources()
 
         # Temperature
         self._temperature = 0
@@ -131,6 +146,33 @@ class Controller():
             time.sleep(CATALOG_SUB_TIMEOUT)
             req.put(f"{CATALOG_URI}/services/upd", data = json.dumps(self.payload))
     
+
+    def _get_arduino_resources(self):
+        payload = req.get(f"{CATALOG_URI}/devices")
+
+        devices_list = self._json_dict_to_str(payload.text)
+
+        arduino = None
+        for device in devices_list:
+            if device["id"] == ARDUINO_ID:
+                arduino = device
+
+        if arduino == None:
+            print(f"Arduino not found in the devices list")
+            exit(1)
+        
+        # Given resources names, find associated types and mqtt end_point
+        for resource in arduino["rs"]:
+            res_name = resource["n"]
+
+            if res_name in self._arduino_resources["pub"]:
+                self._arduino_resources["pub"][res_name]["type"] = resource["t"]
+                self._arduino_resources["pub"][res_name]["topics"] = []
+
+            if res_name in self._arduino_resources["sub"]:
+                self._arduino_resources["sub"][res_name]["type"] = resource["t"]
+                self._arduino_resources["sub"][res_name]["topics"] = []
+
 
     def _callback_mqtt_on_message(self, paho_mqtt, userdata, msg):
         print(f"MQTT: message received on {msg.topic}: {msg.payload}")
@@ -272,3 +314,16 @@ class Controller():
 
     def _max_ht_presence_threshold_callback(self, val):
         self._max_ht_presence = val
+
+
+
+    def _json_dict_to_str(self, json_dict):
+        try:
+            json_str = json.dumps(json_dict)
+            
+            return json_str
+        
+        except ValueError as exc:
+            print(f"Error in dictionary to output JSON conversion: {exc}")
+        except Exception as exc:
+            print(f"An exception occurred: {exc}")
