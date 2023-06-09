@@ -27,13 +27,18 @@ class Controller():
         - Retreive Catalog data
         """
 
-        # Basic service data
+        # Service data
+        self._service_data = {
+            "read": {},
+            "write": {},
+            "listen": {}
+        }
         self._service_id = "IoT_Lab_G3_Controller"
         self._mqtt_ep = {
             "s": [],
             "p": []
         }
-        self._resources = [
+        self._json_resources = [
             {"n": "set_min_ac_presence", "t": "mi_ap"},
             {"n": "set_max_ac_presence", "t": "ma_ap"},
             {"n": "set_min_ac_absence", "t": "mi_aa"},
@@ -45,7 +50,7 @@ class Controller():
             {"n": "set_pir_timeout", "t": "p_to"}
         ]
         self._info = {
-            "d": "IoT Devices Controller"
+            "d": "Arduino Controller"
         }
 
         self._cat_info = self._get_catalog()
@@ -65,7 +70,8 @@ class Controller():
         self._mqtt_client.connect(self._mqtt_broker["hn"], self._mqtt_broker["pt"])
         self._mqtt_client.loop_start()
 
-        self._arduino_resources = {
+        # Get arduino resources
+        self._arduino_data = {
             "pub": {
                 "temperature": {}, "pir_presence": {}, "mic_presence": {}
             },
@@ -73,8 +79,7 @@ class Controller():
                 "air_cond": {}, "heating": {}, "lcd": {}
             }
         }
-        # Get arduino resources
-        self._get_arduino_resources()
+        self._get_arduino_data()
 
         # Temperature
         self._temperature = 0
@@ -147,7 +152,7 @@ class Controller():
             req.put(f"{CATALOG_URI}/services/upd", data = json.dumps(self.payload))
     
 
-    def _get_arduino_resources(self):
+    def _get_arduino_data(self):
         payload = req.get(f"{CATALOG_URI}/devices")
 
         devices_list = self._json_dict_to_str(payload.text)
@@ -166,24 +171,24 @@ class Controller():
             name = resource["n"]
 
             # Add mqtt end_point on which arduino publishes
-            if name in self._arduino_resources["pub"]:
+            if name in self._arduino_data["pub"]:
                 type = resource["t"]
-                self._arduino_resources["pub"][name]["type"] = type
+                self._arduino_data["pub"][name]["type"] = type
 
-                self._arduino_resources["pub"][name]["topics"] = []
+                self._arduino_data["pub"][name]["topics"] = []
                 for topic in arduino["ep"]["m"]["p"]:
                     if topic["t"] == type:
-                        self._arduino_resources["pub"][name]["topics"].append(topic["v"])
+                        self._arduino_data["pub"][name]["topics"].append(topic["v"])
 
             # Add mqtt end_point on which arduino is subscribed
-            if name in self._arduino_resources["sub"]:
+            if name in self._arduino_data["sub"]:
                 type = resource["t"]
-                self._arduino_resources["sub"][name]["type"] = type
+                self._arduino_data["sub"][name]["type"] = type
 
-                self._arduino_resources["sub"][name]["topics"] = []
+                self._arduino_data["sub"][name]["topics"] = []
                 for topic in arduino["ep"]["m"]["s"]:
                     if topic["t"] == type:
-                        self._arduino_resources["sub"][name]["topics"].append(topic["v"])
+                        self._arduino_data["sub"][name]["topics"].append(topic["v"])
 
 
 
@@ -340,3 +345,10 @@ class Controller():
             print(f"Error in dictionary to output JSON conversion: {exc}")
         except Exception as exc:
             print(f"An exception occurred: {exc}")
+
+
+
+    class Data():
+        def __init__(self, type: str, topic: list):
+            self.type = type
+            self.topic = topic
