@@ -8,7 +8,7 @@ import json
 CATALOG_URI = "http://192.0.0.1:8080"
 
 
-class Service():
+class SubscriberService():
 
     def __init__(self):
         self._service_id = "IoT_lab_group3_service_subscriber"
@@ -28,15 +28,16 @@ class Service():
         self._mqtt_client.connect(self._broker_hostname, self._broker_port)
         self._mqtt_client.loop_start()
 
+        self._REFRESH_DELAY = 60
+        self._thread = Thread(target = self.thread_refresh_catalog_subscription)
+        self._thread.start()
+
         self._subscribed_topics_type_device = []
         self.get_temperature_topics()
 
         for topic_type_device in self._subscribed_topics_type_device:
             self._mqtt_client.subscribe(topic_type_device[0], qos= 2)
 
-        self._REFRESH_DELAY = 60
-        self._thread = Thread(target = self.thread_refresh_catalog_subscription)
-        self._thread.start()
 
 
 
@@ -77,12 +78,9 @@ class Service():
     def payload_catalog_subscription(self):
         payload_dict = {}
         payload_dict["id"] = self._service_id
-        payload_dict["ep"]["m"]["s"] = []
+        payload_dict["ep"] = {}
         payload_dict["rs"] = []
         payload_dict["in"]["d"] = "Read temperature from sensors"
-
-        for topic_type_device in self._subscribed_topics_type_device:
-            payload_dict["ep"]["m"]["s"].append({"v": topic_type_device[0], "t": topic_type_device[1]})
 
         return self.json_dict_to_str(payload_dict)            
 
@@ -153,7 +151,7 @@ class Service():
 
 
 def main():
-    s = Service()
+    s = SubscriberService()
     
 
 

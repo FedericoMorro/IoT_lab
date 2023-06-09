@@ -4,114 +4,46 @@ import paho.mqtt.client as PahoMQTT
 import requests
 import json
 
-refresh_time = 60
 
-ip_addr = "127.0.0.1"
-port = 8080
+CATALOG_URI = "http://192.0.0.1:8080"
 
-class Service():
+
+class PublisherService():
 
     def __init__(self):
-        self._service_id = "IoT_lab_group3_service_publisher"
+        self._service_id = "IoT_lab_group3_service_subscriber"
 
-        self._catalog_uri = "http://192.0.0.1:8080"
+        self._catalog_uri = CATALOG_URI
 
         self._broker_hostname = ""
-        self._broker_port = -1        
-
-        self._payload = {
-            "id": "service_led_id",
-            "ep": {
-                "r": {
-                    "r": [
-                    ],
-                    "c": [
-                    ]
-                },
-                "m": {
-                    "s": [
-                    ],
-                    "p": [
-                    ]
-                }
-            },
-            "in": {
-                "d": "led/temp"
-            }
-        }
+        self._broker_port = -1
+        self._catalog_base_topic = ""
 
         self._mqtt_client = PahoMQTT.Client(self._service_id, clean_session= False)
         self._mqtt_client.on_connect = self.callback_mqtt_on_connect
         self._mqtt_client.on_message = self.callback_mqtt_on_message
-
-        self._thread = Thread(target = self.subscribe)
-        self._thread.start()
 
         self.get_mqtt_broker()
 
         self._mqtt_client.connect(self._broker_hostname, self._broker_port)
         self._mqtt_client.loop_start()
 
-        self.get_temperature_topics()
+        self._REFRESH_DELAY = 60
+        self._thread_sub = Thread(target = self.thread_refresh_catalog_subscription)
+        self._thread_sub.start()
 
-        self._subscribed_topics = []
-        self._publisher_topics = []
+        self._publisher_topics_type_device = []
+        self.get_led_topics()
 
-        self._pub_thread = Thread(target = self.publish_led)
-        self._pub_thread.start()
+        self._CHANGE_LED_STATUS_DELAY = 15
+        self._led_status = 0
+        self._thread_led = Thread(target= self.publish_led_status)
+        self._thread_led.start()
 
 
     def __del__(self):
-        self._mqtt_client.unsubscribe(self._subscribed_topics)
         self._mqtt_client.loop_stop()
 
-
-    def subscribe(self):
-        self._mqtt_client.subscribe(f"{self._mqtt_data['ep']['m']['bt'][0]['v']}/services/{self._service_id}", 2)
-
-        self._mqtt_client.publish(
-            topic = f"{self._mqtt_data['ep']['m']['bt'][0]['v']}/services/sub",
-            payload = f"{json.dumps(self._payload)}",
-            qos = 2
-        )
-
-        while True:
-            time.sleep(refresh_time)
-
-            self._mqtt_client.publish(
-                topic = f"{self._mqtt_data['ep']['m']['bt'][0]['v']}/services/upd",
-                payload = f"{json.dumps(self._payload)}",
-                qos = 2
-            )
-        
-
-    def publish_led(self):
-        val = 1
-
-        while True:
-            for endpoint in self._publisher_topics:
-                self._mqtt_client.publish(
-                    topic = f"{endpoint}",
-                    payload = self._encode_led_pl(val),
-                    qos = 2
-                )
-
-            val = 1 - val
-            time.sleep(15)
-
-
-    def _encode_led_pl(self, val):
-        pl = {
-            "bn": f'{self._service_id}',
-            "e": [
-                {"n": "led"},
-                {"t": int(time.time())},
-                {"v": val},
-                {"u": "None"}
-            ]
-        }
-
-        return pl
 
 
     def callback_mqtt_on_connect(self, client, userdata, flags, rc):
@@ -119,7 +51,60 @@ class Service():
 
 
     def callback_mqtt_on_message(self, paho_mqtt, userdata, msg):
-        pass
+        print(f"MQTT message received on topic: {msg.topic}")
+
+
+
+    def publish_led_status(self):
+        
+        while True:
+            self._led_status = 1 - self._led_status
+
+            for topic_type_device in self._publisher_topics_type_device:
+                topic = topic_type_device[0]
+                res_type = topic_type_device[1]
+                device_id = topic_type_device[2]
+
+                self._mqtt_client.publish(
+                    topic= topic,
+                    payload= self.payload_led_sen_ml(self._led_status, res_type, device_id),
+                    qos= 2
+                )
+
+            time.sleep(self._CHANGE_LED_STATUS_DELAY)
+
+    
+    def payload_led_sen_ml(self, led_status, res_type, device_id):
+        payload_dict = {}
+        payload_dict["bn"] = device_id
+        payload_dict["e"][0]["n"] = res_type
+        payload_dict["e"][0]["t"] = int(time.time())
+        payload_dict["e"][0]["v"] = led_status
+        payload_dict["e"][0]["u"] = ""
+
+        return self.json_dict_to_str(payload_dict)
+
+
+    
+    def thread_refresh_catalog_subscription(self):
+        # Subscribe
+        requests.post(f"{self._catalog_uri}/services/sub", data= self.payload_catalog_subscription())
+
+        while True:
+            # Refresh subscription
+            requests.put(f"{self._catalog_uri}/services/upd", data= self.payload_catalog_subscription())
+            
+            time.sleep(self._REFRESH_DELAY)
+
+
+    def payload_catalog_subscription(self):
+        payload_dict = {}
+        payload_dict["id"] = self._service_id
+        payload_dict["ep"] = {}
+        payload_dict["rs"] = []
+        payload_dict["in"]["d"] = "Read temperature from sensors"
+
+        return self.json_dict_to_str(payload_dict)            
 
 
 
@@ -131,6 +116,7 @@ class Service():
 
             self._broker_hostname = input_dict["ep"]["m"]["hn"][0]["v"]
             self._broker_port = input_dict["ep"]["m"]["pt"][0]["v"]
+            self._catalog_base_topic = input_dict["ep"]["m"]["bt"][0]["v"]
 
         except KeyError as exc:
             print(f"Missing or wrong key in JSON file: {exc}")
@@ -142,21 +128,27 @@ class Service():
 
     def get_led_topics(self):
         try:
+            # Get all devices subscripted to the Catalog
             payload = requests.get(self._catalog_uri + "/devices")
 
             input_dict = json.loads(payload)
 
+            # Loop over devices
             for device in input_dict:
+                
+                # Search if the device has the temperature resource and get the type
+                ep_type = ""
+                has_temp = False
+                for resource in device["rs"]:
+                    if resource["n"] == "led":
+                        ep_type = resource["v"]
+                        has_temp = True
 
-                has_led = False
-                for resource in device["in"]["r"]:
-                    if resource["n"] == "sub/led":
-                        has_led = True
-
-                if has_led:
-                    for endpoint in device["ep"]["m"]["s"]:
-                        if endpoint["value"].find("led") != -1:
-                            self._publisher_topics.append(endpoint["v"])
+                # If so, find the end_point which corresponds to the type found in the resources
+                if has_temp:
+                    for mqtt_endpoint in device["ep"]["m"]["p"]:
+                        if mqtt_endpoint["t"] == ep_type:
+                            self._publisher_topics_type_device.append((mqtt_endpoint["v"], mqtt_endpoint["t"], device["id"]))
 
         except KeyError as exc:
             print(f"Missing or wrong key in JSON file: {exc}")
@@ -181,7 +173,7 @@ class Service():
 
 
 def main():
-    pass
+    s = PublisherService()
     
 
 
