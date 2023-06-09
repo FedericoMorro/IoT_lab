@@ -11,6 +11,23 @@
 #include "arduino_secrets.h"
 
 
+#define SERIAL_DEBUG 1
+
+
+struct resource {
+    String name, type;
+};
+
+
+resource temp_res = {"temperature", "t"};
+resource pir_res = {"pir_presence", "p"};
+resource mic_res = {"mic_presence", "m"};
+
+resource ac_res = {"air_cond", "a"};
+resource ht_res = {"heating", "h"};
+resource lcd_res = {"lcd", "l"};
+
+
 /*
  *  CONNECTIVITY FUCNTIONS AND VARIABLES DECLARATIONS
  */
@@ -83,6 +100,10 @@ void callback();
 
 // Temperature
 double v;
+const int B = 4275, T0 = 25;
+const long R0 = 100000, R1 = 100000;
+const double TK = 273.15;
+double temperature;
 
 // Air conditioning (fan)
 uint8_t air_conditioning_intensity;
@@ -117,15 +138,16 @@ char lcd_buffer[2][21];
 void loop_refresh_display();
 uint8_t display_state;
 
-// Input from serial
-void change_max_min();
 
 void setup() {
     Serial.begin(9600);
     while (!Serial);
-    Serial.println("Lab 2 starting");
+    #if SERIAL_DEBUG
+        Serial.println("[DEBUG] Smart Home systems starting...");
+    #endif // SERIAL_DEBUG
 
-    // Pins setup
+
+    /* PIN SETUP */
     pinMode(TEMPERATURE_PIN, INPUT);
 
     pinMode(FAN_PIN, OUTPUT);
@@ -133,9 +155,13 @@ void setup() {
     pinMode(GREEN_LED_PIN, OUTPUT);
 
     pinMode(PIR_PIN, INPUT);
+    /* END PIN SETUP */
+
 
     connectivity_setup();
 
+
+    /* PIR AND MIC PRESENCE SETUP */
     presence = 0;
     
     attachInterrupt(digitalPinToInterrupt(PIR_PIN), pir_presence_isr, CHANGE);
@@ -157,41 +183,47 @@ void setup() {
     }
     current_pos = 0;
     Scheduler.startLoop(loop_update_audio_samples_cnt);
+    /* END PIR AND MIC PRESENCE SETUP */
 
+
+    /* LCD SCREEN SETUP */
     Wire.begin();
     Wire.beginTransmission(0x27);
     lcd.begin(16, 2);
     lcd.setBacklight(255);
     display_state = 1;
+    /* END LCD SCREEN SETUP */
 }
 
 
 void loop() {
-    v = (double) analogRead(TEMPERATURE_PIN);
-    // temp computation moved to Controller.py
-    // send v to Controller through MQTT
+    compute_temperature();
 
     // pir presence timeout moved to Controller.py
 
-    Serial.print("PIR presence: "); Serial.print(pir_presence);
-    Serial.print("\tMicrophone presence: "); Serial.println(microphone_presence);
+    Serial.print("[DEBUG] PIR presence: "); Serial.print(pir_presence);
+    Serial.print(";\tMicrophone presence: "); Serial.println(microphone_presence);
 
-    // heating system and air conditioning logic moved to Controller.py
-    // retreive data on MQTT
-
-    // analogWrite on pin has to be moved in MQTT callback
-
-    if (Serial.available()) {
-        change_max_min();
-    }
     
-    delay(1000);
+    
+    delay(2000);
+}
+
+
+void compute_temperature() {
+    double v = (double) analogRead(TEMPERATURE_PIN);
+    double r = (1023.0 / v - 1.0) * (double)R1;
+    temperature = 1.0 / ( (log(r / (double)R0) / (double)B) + (1.0 / ((double)T0 + TK))) - TK;
+    Serial.print("[DEBUG] Measured temperature: "); Serial.println(temperature);
+    
+    // TODO: send to MQTT temp
 }
 
 
 void pir_presence_isr() {
     pir_presence = 1;
-    // update pir value on mqtt
+
+    // TODO: update pir value on mqtt
 }
 
 
@@ -224,9 +256,12 @@ void loop_update_audio_samples_cnt() {
     }
     Serial.print("Sum of buffer cnt :"); Serial.println(sum);
 
+    uint8_t prev_mic_pres = microphone_presence;
     microphone_presence = (sum >= n_sound_events) ? 1:0;
 
-    // TODO: send microphone_presence val on MQTT
+    if (prev_mic_pres != microphone_presence) {
+        // TODO: send microphone_presence val on MQTT
+    }
 
     delay(sound_interval / BUFFER_SIZE_SAMPLES_CNT);
 }
@@ -237,7 +272,9 @@ void loop_update_audio_samples_cnt() {
  */
 
 void callback(char *topic, byte *payload, unsigned int length) {
-    Serial.println(String("Message received on topic: ") + topic);
+    #if SERIAL_DEBUG
+        Serial.println(String("Message received on topic: ") + topic);
+    #endif
 
     return;  
 }
@@ -249,7 +286,7 @@ void connectivity_setup() {
         Serial.println(ssid);
 
         status = WiFi.begin(ssid, pass);
-        delay(2000);
+        delay(1000);
     }
 
     Serial.print("Connected with IP address: ");
@@ -281,16 +318,19 @@ void get_mqtt_broker() {
     int return_code = -1;
 
     while (return_code != 200) {
-        Serial.println("GET request...");
+        #if SERIAL_DEBUG
+            Serial.println("[DEBUG] GET request...");
+        #endif
 
         http_client.get("/");
         return_code = http_client.responseStatusCode();
 
-        Serial.println("Response code: " + return_code);
+        #if SERIAL_DEBUG
+            Serial.println("Response code: " + return_code);
+        #endif
     }
 
     body = http_client.responseBody();
-
     DeserializationError err = deserializeJson(json_received_catalog, body.c_str());
 
     if (err) {
@@ -306,14 +346,17 @@ void get_mqtt_broker() {
     catalog_base_topic = String(tmp) + String("/devices");
     base_topic = catalog_base_topic + String("/") + String(device_id);
 
-    Serial.println("[DEBUG] Broker info: " + broker_address + ":" + broker_port + "; base_topic: " + base_topic);
+    #if SERIAL_DEBUG
+        Serial.println("[DEBUG] Broker info: " + broker_address + ":" + broker_port + "; base_topic: " + base_topic);
+    #endif
 }
 
 
 void mqtt_reconnect() {
     // Loop until connected
     while (mqtt_client.state() != MQTT_CONNECTED) {
-        if (mqtt_client.connect(device_id)) {     // unique client id
+        String unique_device_id = String("IoT_Lab_G3_") + String(device_id);
+        if (mqtt_client.connect(unique_device_id.c_str())) {     // unique client id
 
             // Subscribe to led topic
             mqtt_client.subscribe((base_topic + String("/led")).c_str());
@@ -347,32 +390,32 @@ void refresh_catalog_subscription() {
     json_sent_catalog.clear();
     json_sent_catalog["id"] = device_id;
 
-    json_sent_catalog["ep"]["m"]["p"][0]["v"] = base_topic + String("/temp");
-    json_sent_catalog["ep"]["m"]["p"][0]["t"] = String("temp");
-    json_sent_catalog["ep"]["m"]["p"][1]["v"] = base_topic + String("/pir");
-    json_sent_catalog["ep"]["m"]["p"][1]["t"] = String("pir");
-    json_sent_catalog["ep"]["m"]["p"][2]["v"] = base_topic + String("/mic");
-    json_sent_catalog["ep"]["m"]["p"][2]["t"] = String("mic");
+    json_sent_catalog["ep"]["m"]["p"][0]["v"] = base_topic + String("/t");
+    json_sent_catalog["ep"]["m"]["p"][0]["t"] = temp_res.type;
+    json_sent_catalog["ep"]["m"]["p"][1]["v"] = base_topic + String("/p");
+    json_sent_catalog["ep"]["m"]["p"][1]["t"] = pir_res.type;
+    json_sent_catalog["ep"]["m"]["p"][2]["v"] = base_topic + String("/m");
+    json_sent_catalog["ep"]["m"]["p"][2]["t"] = mic_res.type;
 
-    json_sent_catalog["ep"]["m"]["s"][0]["v"] = base_topic + String("/ac");
-    json_sent_catalog["ep"]["m"]["s"][0]["t"] = String("ac");
-    json_sent_catalog["ep"]["m"]["s"][1]["v"] = base_topic + String("/ht");
-    json_sent_catalog["ep"]["m"]["s"][1]["t"] = String("ht");
-    json_sent_catalog["ep"]["m"]["s"][2]["v"] = base_topic + String("/lcd");
-    json_sent_catalog["ep"]["m"]["s"][2]["t"] = String("lcd");
+    json_sent_catalog["ep"]["m"]["s"][0]["v"] = base_topic + String("/a");
+    json_sent_catalog["ep"]["m"]["s"][0]["t"] = ac_res.type;
+    json_sent_catalog["ep"]["m"]["s"][1]["v"] = base_topic + String("/h");
+    json_sent_catalog["ep"]["m"]["s"][1]["t"] = ht_res.type;
+    json_sent_catalog["ep"]["m"]["s"][2]["v"] = base_topic + String("/l");
+    json_sent_catalog["ep"]["m"]["s"][2]["t"] = lcd_res.type;
 
-    json_sent_catalog["rs"][0]["n"] = "temperature";
-    json_sent_catalog["rs"][0]["t"] = "temp";
-    json_sent_catalog["rs"][1]["n"] = "pir_presence";
-    json_sent_catalog["rs"][1]["t"] = "pir";
-    json_sent_catalog["rs"][2]["n"] = "mic_presence";
-    json_sent_catalog["rs"][2]["t"] = "mic";
-    json_sent_catalog["rs"][3]["n"] = "air_cond";
-    json_sent_catalog["rs"][3]["t"] = "ac";
-    json_sent_catalog["rs"][3]["n"] = "heating";
-    json_sent_catalog["rs"][3]["t"] = "ht";
-    json_sent_catalog["rs"][4]["n"] = "lcd";
-    json_sent_catalog["rs"][4]["t"] = "lcd";
+    json_sent_catalog["rs"][0]["n"] = temp_res.name;
+    json_sent_catalog["rs"][0]["t"] = temp_res.type;
+    json_sent_catalog["rs"][1]["n"] = pir_res.name;
+    json_sent_catalog["rs"][1]["t"] = pir_res.type;
+    json_sent_catalog["rs"][2]["n"] = mic_res.name;
+    json_sent_catalog["rs"][2]["t"] = mic_res.type;
+    json_sent_catalog["rs"][3]["n"] = ac_res.name;
+    json_sent_catalog["rs"][3]["t"] = ac_res.type;
+    json_sent_catalog["rs"][3]["n"] = ht_res.name;
+    json_sent_catalog["rs"][3]["t"] = ht_res.type;
+    json_sent_catalog["rs"][4]["n"] = lcd_res.name;
+    json_sent_catalog["rs"][4]["t"] = lcd_res.type;
 
     serializeJson(json_sent_catalog, output);
 

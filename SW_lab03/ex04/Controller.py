@@ -11,7 +11,7 @@ import numpy as np
 CATALOG_IP = "127.0.0.1"
 CATALOG_PORT = 8080
 
-catalog_uri = f"http://{CATALOG_IP}:{CATALOG_PORT}"
+CATALOG_URI = f"http://{CATALOG_IP}:{CATALOG_PORT}"
 
 
 class Controller():
@@ -24,12 +24,6 @@ class Controller():
 
         # Basic service data
         self._service_id = "IoT_Lab_G3_Controller"
-        self._rest_ep = {
-            "r": [],
-            "c": [],
-            "u": [],
-            "d": []
-        }
         self._mqtt_ep = {
             "s": [],
             "p": []
@@ -55,13 +49,7 @@ class Controller():
         self._mqtt_client.connect(self._mqtt_broker["hn"], self._mqtt_broker["pt"])
         self._mqtt_client.loop_start()
 
-        # Temperature computation constants
-        self._R0 = 100000
-        self._R1 = 100000
-        self._B  = 4275
-        self._T0 = 25
-        self._TK = 273.15
-
+        # Temperature
         self._temperature = 0
 
         # Fan information
@@ -110,7 +98,7 @@ class Controller():
     
 
     def _get_catalog(self):
-        reply = req.get(catalog_uri)
+        reply = req.get(CATALOG_URI)
         try:
             get_output = json.loads(reply.text)
             return get_output
@@ -124,13 +112,12 @@ class Controller():
             return
 
 
-    # TODO: check and finish this function -> better integration with Catalog?
     def _subscribe(self):
-        req.post(catalog_uri, data = json.dumps(self.payload))
+        req.post(f"{CATALOG_URI}/services/sub", data = json.dumps(self.payload))
 
         while True:
             time.sleep(60)
-            req.put(catalog_uri, data = json.dumps(self.payload))
+            req.put(f"{CATALOG_URI}/services/upd", data = json.dumps(self.payload))
     
 
     def _callback_mqtt_on_message(self, paho_mqtt, userdata, msg):
@@ -179,8 +166,7 @@ class Controller():
 
 
     def _temperature_callback(self, val):
-        r = (1023 / val - 1) * self._R1
-        self._temperature = 1 / ( (np.log(r / self._R0) / self._B) + (1.0 / (self._T0 + self._TK))) - self._TK
+        self._temperature = val
 
         if self._pir_presence or self._mic_presence:
             self._ac_pwm_value(self._min_ac_presence, self._max_ac_presence)
