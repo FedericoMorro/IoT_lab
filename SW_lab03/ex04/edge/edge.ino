@@ -13,20 +13,47 @@
 
 #define SERIAL_DEBUG 1
 
-
-struct resource {
-    String name, type, ep;
+/*
+ * INTERNAL DATA TYPE DECLARATION AND DEFINITION
+ */
+struct pub_resource {
+  String name, type, ep;
 };
 
+struct sub_resource {
+    String name, type, ep;
+    void (*res_callback)(byte *, unsigned int);
+};
 
-resource temp_res = {"temperature", "t", "/t"};
-resource pir_res = {"pir_presence", "p", "/p"};
-resource mic_res = {"mic_presence", "m", "/m"};
+#define N_PUB_RES 3
+#define N_SUB_RES 3
 
-resource ac_res = {"air_cond", "a", "/a"};
-resource ht_res = {"heating", "h", "/h"};
-resource lcd_res = {"lcd", "l", "/l"};
+#define PUB_IND_TEMP 0
+#define PUB_IND_PIR  1
+#define PUB_IND_MIC  2
 
+void ac_callback(byte *payload, unsigned int length);
+void ht_callback(byte *payload, unsigned int length);
+void lcd_callback(byte *payload, unsigned int length);
+
+pub_resource pub_res[N_PUB_RES] = {
+    {"temperature", "t", "/t"},
+    {"pir_presence", "p", "/p"},
+    {"mic_presence", "m", "/m"}
+};
+
+#define SUB_IND_AC   0
+#define SUB_IND_HT   1
+#define SUB_IND_LCD  2
+
+sub_resource sub_res[N_SUB_RES] = {
+    {"air_cond", "a", "/a", &ac_callback},
+    {"heating", "h", "/h", &ht_callback},
+    {"lcd", "l", "/l", &lcd_callback}
+};
+/*
+ * END INTERNAL DATA TYPE DECLARATION AND DEFINITION
+ */
 
 /*
  *  CONNECTIVITY FUCNTIONS AND VARIABLES DECLARATIONS
@@ -81,7 +108,7 @@ void get_mqtt_broker();
 void mqtt_reconnect();
 void refresh_catalog_subscription();
 void check_mqtt_msg();
-String sen_ml_encode(String dev, float val, String unit);
+String sen_ml_encode(String dev, double val, String unit);
 
 void callback();
 /*
@@ -214,9 +241,9 @@ void compute_temperature() {
     temperature = 1.0 / ( (log(r / (double)R0) / (double)B) + (1.0 / ((double)T0 + TK))) - TK;
     Serial.print("[DEBUG] Measured temperature: "); Serial.println(temperature);
     
-    String output = sen_ml_encode(temp_res.name, temperature, "Cel");
+    String output = sen_ml_encode(pub_res[PUB_IND_TEMP].name, temperature, "Cel");
 
-    mqtt_client.publish((base_topic + temp_res.ep).c_str(), output.c_str());
+    mqtt_client.publish((base_topic + pub_res[PUB_IND_TEMP].ep).c_str(), output.c_str());
 }
 
 
@@ -224,10 +251,10 @@ void pir_presence_isr() {
     uint8_t prev_pir_pres = pir_presence;
     pir_presence = 1;
 
-    String output = sen_ml_encode(pir_res.name, pir_presence, "");
+    String output = sen_ml_encode(pub_res[PUB_IND_PIR].name, pir_presence, "");
 
     if (pir_presence != prev_pir_pres) {
-        mqtt_client.publish((base_topic + pir_res.ep).c_str(), output.c_str());
+        mqtt_client.publish((base_topic + pub_res[PUB_IND_PIR].ep).c_str(), output.c_str());
     }
 }
 
@@ -266,8 +293,8 @@ void loop_update_audio_samples_cnt() {
 
 
     if (prev_mic_pres != microphone_presence) {
-        String output = sen_ml_encode(mic_res.name, microphone_presence, "");
-        mqtt_client.publish((base_topic + mic_res.ep).c_str(), output.c_str());
+        String output = sen_ml_encode(pub_res[PUB_IND_MIC].name, microphone_presence, "");
+        mqtt_client.publish((base_topic + pub_res[PUB_IND_MIC].ep).c_str(), output.c_str());
     }
 
     delay(sound_interval / BUFFER_SIZE_SAMPLES_CNT);
@@ -283,7 +310,87 @@ void callback(char *topic, byte *payload, unsigned int length) {
         Serial.println(String("Message received on topic: ") + topic);
     #endif
 
+    String topic_string = String(topic);
+    for (int i = 0; i < N_SUB_RES; i++) {
+        if (topic_string == (base_topic + sub_res[i].ep)) {
+            sub_res[i].res_callback(payload, length);
+        }
+    }
+
     return;  
+}
+
+
+void ac_callback(byte *payload, unsigned int length) {
+    DeserializationError err = deserializeJson(json_received_sen_ml, (char *)payload);
+
+    if (err) {
+        Serial.print("deserializeJson() failed with code: ");
+        Serial.println(err.c_str());
+        return;
+    }
+
+    const char *tmp = json_received_sen_ml["e"][0]["n"];
+    if (String(tmp) == sub_res[SUB_IND_AC].name) {
+        analogWrite(FAN_PIN, (int)json_received_sen_ml["e"][0]["v"]);
+    }
+
+    return;
+}
+
+
+void ht_callback(byte *payload, unsigned int length) {
+    DeserializationError err = deserializeJson(json_received_sen_ml, (char *)payload);
+
+    if (err) {
+        Serial.print("deserializeJson() failed with code: ");
+        Serial.println(err.c_str());
+        return;
+    }
+
+    const char *tmp = json_received_sen_ml["e"][0]["n"];
+    if (String(tmp) == sub_res[SUB_IND_HT].name) {
+        analogWrite(RED_LED_PIN, (int)json_received_sen_ml["e"][0]["v"]);
+    }
+
+    return;
+}
+
+
+void lcd_callback(byte *payload, unsigned int length) {
+    DeserializationError err = deserializeJson(json_received_sen_ml, (char *)payload);
+
+    if (err) {
+        Serial.print("deserializeJson() failed with code: ");
+        Serial.println(err.c_str());
+        return;
+    }
+
+    uint8_t flg = 0;
+    const char *tmp_top = json_received_sen_ml["e"][0]["n"];
+    if (String(tmp_top) == sub_res[SUB_IND_LCD].name) {
+        const char *tmp = json_received_sen_ml["e"][0]["v"];
+        sprintf(lcd_buffer[0], tmp);
+        flg++;
+    }
+
+    const char *tmp_top2 = json_received_sen_ml["e"][0]["n"];
+    if (String(tmp_top2) == sub_res[SUB_IND_LCD].name) {
+        const char *tmp = json_received_sen_ml["e"][0]["v"];
+        sprintf(lcd_buffer[1], tmp);
+        flg++;
+    }
+
+    if (flg == 2) {
+        lcd.setCursor(0, 0);
+        lcd.print(lcd_buffer[0]);
+        lcd.setCursor(0, 1);
+        lcd.print(lcd_buffer[1]);
+    } else {
+        Serial.println("[LCD] Corrupted payload received from MQTT server. Skipping LCD refresh.");
+    }
+
+    return;
 }
 
 
@@ -396,32 +503,19 @@ void refresh_catalog_subscription() {
     json_sent_catalog.clear();
     json_sent_catalog["id"] = device_id;
 
-    json_sent_catalog["ep"]["m"]["p"][0]["v"] = base_topic + temp_res.ep;
-    json_sent_catalog["ep"]["m"]["p"][0]["t"] = temp_res.type;
-    json_sent_catalog["ep"]["m"]["p"][1]["v"] = base_topic + pir_res.ep;
-    json_sent_catalog["ep"]["m"]["p"][1]["t"] = pir_res.type;
-    json_sent_catalog["ep"]["m"]["p"][2]["v"] = base_topic + mic_res.ep;
-    json_sent_catalog["ep"]["m"]["p"][2]["t"] = mic_res.type;
+    for (int i = 0; i < N_PUB_RES; i++) {
+        json_sent_catalog["ep"]["m"]["p"][i]["v"] = base_topic + pub_res[i].ep;
+        json_sent_catalog["ep"]["m"]["p"][i]["t"] = pub_res[i].type;
+        json_sent_catalog["rs"][i]["n"] = pub_res[i].name;
+        json_sent_catalog["rs"][i]["t"] = pub_res[i].type;
+    }
 
-    json_sent_catalog["ep"]["m"]["s"][0]["v"] = base_topic + ac_res.ep;
-    json_sent_catalog["ep"]["m"]["s"][0]["t"] = ac_res.type;
-    json_sent_catalog["ep"]["m"]["s"][1]["v"] = base_topic + ht_res.ep;
-    json_sent_catalog["ep"]["m"]["s"][1]["t"] = ht_res.type;
-    json_sent_catalog["ep"]["m"]["s"][2]["v"] = base_topic + lcd_res.ep;
-    json_sent_catalog["ep"]["m"]["s"][2]["t"] = lcd_res.type;
-
-    json_sent_catalog["rs"][0]["n"] = temp_res.name;
-    json_sent_catalog["rs"][0]["t"] = temp_res.type;
-    json_sent_catalog["rs"][1]["n"] = pir_res.name;
-    json_sent_catalog["rs"][1]["t"] = pir_res.type;
-    json_sent_catalog["rs"][2]["n"] = mic_res.name;
-    json_sent_catalog["rs"][2]["t"] = mic_res.type;
-    json_sent_catalog["rs"][3]["n"] = ac_res.name;
-    json_sent_catalog["rs"][3]["t"] = ac_res.type;
-    json_sent_catalog["rs"][3]["n"] = ht_res.name;
-    json_sent_catalog["rs"][3]["t"] = ht_res.type;
-    json_sent_catalog["rs"][4]["n"] = lcd_res.name;
-    json_sent_catalog["rs"][4]["t"] = lcd_res.type;
+    for (int i = 0; i < N_SUB_RES; i++) {
+        json_sent_catalog["ep"]["m"]["s"][i]["v"] = base_topic + sub_res[i].ep;
+        json_sent_catalog["ep"]["m"]["s"][i]["t"] = sub_res[i].type;
+        json_sent_catalog["rs"][i + N_PUB_RES]["n"] = sub_res[i].name;
+        json_sent_catalog["rs"][i + N_PUB_RES]["t"] = sub_res[i].type;
+    }
 
     serializeJson(json_sent_catalog, output);
 
@@ -452,7 +546,11 @@ String sen_ml_encode(String dev, double val, String unit) {
     json_sent_sen_ml["e"][0]["n"] = dev;
     json_sent_sen_ml["e"][0]["t"] = int(millis()/1000);
     json_sent_sen_ml["e"][0]["v"] = val;
-    json_sent_sen_ml["e"][0]["u"] = unit;
+    if (unit == "None") {
+        json_sent_sen_ml["e"][0]["u"] = "";
+    } else {
+        json_sent_sen_ml["e"][0]["u"] = unit;
+    }
 
     serializeJson(json_sent_sen_ml, output);
     return output;

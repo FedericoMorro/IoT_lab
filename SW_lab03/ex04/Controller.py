@@ -51,24 +51,24 @@ class Controller():
             "ac": {
                 "a": {
                     "min": {
-                        "ep": f"{BASE_TOPIC}/t/ac/a/min",
+                        "ep": f"{BASE_TOPIC}/thr/ac/a/min",
                         "t": "mi_aa",
                         "v": 20
                     },
                     "max": {
-                        "ep": f"{BASE_TOPIC}/t/ac/a/max",
+                        "ep": f"{BASE_TOPIC}/thr/ac/a/max",
                         "t": "ma_aa",
                         "v": 25
                     }
                 },
                 "p": {
                     "min": {
-                        "ep": f"{BASE_TOPIC}/t/ac/p/min",
+                        "ep": f"{BASE_TOPIC}/thr/ac/p/min",
                         "t": "mi_ap",
                         "v": 25
                     },
                     "max": {
-                        "ep": f"{BASE_TOPIC}/t/ac/p/max",
+                        "ep": f"{BASE_TOPIC}/thr/ac/p/max",
                         "t": "ma_ap",
                         "v": 30
                     }
@@ -77,24 +77,24 @@ class Controller():
             "ht": {
                 "a": {
                     "min": {
-                        "ep": f"{BASE_TOPIC}/t/ht/a/min",
+                        "ep": f"{BASE_TOPIC}/thr/ht/a/min",
                         "t": "mi_ha",
                         "v": 20
                     },
                     "max": {
-                        "ep": f"{BASE_TOPIC}/t/ht/a/max",
+                        "ep": f"{BASE_TOPIC}/thr/ht/a/max",
                         "t": "ma_ha",
                         "v": 25
                     }
                 },
                 "p": {
                     "min": {
-                        "ep": f"{BASE_TOPIC}/t/ht/p/min",
+                        "ep": f"{BASE_TOPIC}/thr/ht/p/min",
                         "t": "mi_hp",
                         "v": 25
                     },
                     "max": {
-                        "ep": f"{BASE_TOPIC}/t/ht/p/max",
+                        "ep": f"{BASE_TOPIC}/thr/ht/p/max",
                         "t": "ma_hp",
                         "v": 30
                     }
