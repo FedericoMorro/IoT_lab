@@ -301,7 +301,6 @@ class Controller():
     def _callback_mqtt_on_message(self, paho_mqtt, userdata, msg):
         print(f"MQTT: message received on {msg.topic}: {msg.payload}")
 
-
         try:
             input_str = msg.payload.decode("utf-8")     # to convert from bytes to text, otherwise payload is like "b'text"
             input_dict = json.loads(input_str)
@@ -339,7 +338,7 @@ class Controller():
                 unit = i["u"]
 
                 if temp != "C":
-                    temp = self._convert_temp_unit(temp, unit, "C")
+                    temp = self._convert_temp_to_celsius(temp, unit)
 
                 self._thresholds[topic[5]][topic[6]][topic[7]]["v"] = temp
                 self._temperature_callback()
@@ -357,7 +356,7 @@ class Controller():
                 return
 
 
-    def _convert_temp_unit(self, val, original_unit, target_unit) -> float:
+    def _convert_temp_to_celsius(self, val, original_unit) -> float:
         zero_C_in_K = 273.15
         multiply_const_C_to_F = 9/5
         offset_C_to_F = 32
@@ -372,12 +371,6 @@ class Controller():
             val = val - zero_C_in_K
         elif original_unit == 'F':
             val = (val - offset_C_to_F) / multiply_const_C_to_F
-
-        # Convert to target unit (if different from Celsius)
-        if target_unit == 'K':
-            val = val + zero_C_in_K
-        elif target_unit == 'F':
-            val = (val * multiply_const_C_to_F) + offset_C_to_F
 
         return val
 
