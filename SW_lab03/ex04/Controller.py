@@ -32,6 +32,9 @@ class Controller():
         # Temperature
         self._temperature = 0
 
+        self._ac_percentage = 0
+        self._ht_percentage = 0
+
         # Fan information
         self._min_fan_speed = 124   # -> if lower the fan does not move
         self._max_fan_speed = 255
@@ -190,6 +193,9 @@ class Controller():
 
         self._subscribed_topics = []
         self._topic_subscribe()
+
+        self._lcd_thread = Thread(target = self._lcd_data_send())
+        self._lcd_thread.start()
 
 
     @property
@@ -430,9 +436,9 @@ class Controller():
         if self._temperature >= max:
             self._mqtt_pub(1)
         else:
-            ac_percentage = (self._temperature - min) / (max - min)
+            self._ac_percentage = (self._temperature - min) / (max - min)
 
-        self._ac_intensity = ac_percentage * (self._max_fan_speed - self._min_fan_speed) + self._min_fan_speed
+        self._ac_intensity = self._ac_percentage * (self._max_fan_speed - self._min_fan_speed) + self._min_fan_speed
         self._mqtt_pub("air_cond", self._ac_intensity)
 
 
@@ -444,9 +450,9 @@ class Controller():
         if self._temperature >= max:
             self._mqtt_pub(1)
         else:
-            ht_percentage = (max - self._temperature) / (max - min)
+            self._ht_percentage = (max - self._temperature) / (max - min)
 
-        self._ht_intensity = ht_percentage * (self._max_led_intensity - self._min_led_intensity) + self._min_led_intensity
+        self._ht_intensity = self._ht_percentage * (self._max_led_intensity - self._min_led_intensity) + self._min_led_intensity
         self._mqtt_pub()
 
     
@@ -479,6 +485,64 @@ class Controller():
 
                 self._ac_pwm_value()
                 self._ht_pwm_value()
+
+    
+    def _lcd_data_send(self):
+        while True:
+            payload_dict = {}
+            payload_dict["bn"] = "controller"
+            payload_dict["e"] = []
+            payload_dict["e"].append({
+                "n": "lcd",
+                "t": int(time.time()),
+                "v": f"T:{self._temperature:.1f} Pres:{self._pir_presence or self._mic_presence}",
+                "u": ""
+            })
+            payload_dict["e"].append({
+                "n": "lcd",
+                "t": int(time.time()),
+                "v": f"AC:{self._ac_percentage * 100:.0f}% HT:{self._ht_percentage * 100:.0f}",
+                "u": ""
+            })
+
+            pl = self.json_dict_to_str(payload_dict)
+
+            for name in self._arduino_data["sub"]:
+                if name == "lcd":
+                    for topic in self._arduino_data["sub"][name]["topics"]:
+                        self._mqtt_client.publish(topic, pl, qos = 2)
+                    
+            time.sleep(5)
+
+            if self._mic_presence and self._pir_presence:
+                flg = "p"
+            else:
+                flg = "a"
+
+            payload_dict = {}
+            payload_dict["bn"] = "controller"
+            payload_dict["e"] = []
+            payload_dict["e"].append({
+                "n": "lcd",
+                "t": int(time.time()),
+                "v": f'AC: m:{self._thresholds["ac"][flg]["min"]:.1f} M:{self._thresholds["ac"][flg]["max"]}',
+                "u": ""
+            })
+            payload_dict["e"].append({
+                "n": "lcd",
+                "t": int(time.time()),
+                "v": f'AC: m:{self._thresholds["ht"][flg]["min"]:.1f} M:{self._thresholds["ht"][flg]["max"]}',
+                "u": ""
+            })
+
+            pl = self.json_dict_to_str(payload_dict)
+
+            for name in self._arduino_data["sub"]:
+                if name == "lcd":
+                    for topic in self._arduino_data["sub"][name]["topics"]:
+                        self._mqtt_client.publish(topic, pl, qos = 2)
+
+            time.sleep(5)
 
 
     def _json_dict_to_str(self, json_dict):
