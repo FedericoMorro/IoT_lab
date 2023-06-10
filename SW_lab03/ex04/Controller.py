@@ -411,7 +411,6 @@ class Controller():
             return None
             
 
-
     def _temperature_callback(self, val):
         self._temperature = val
 
@@ -425,30 +424,30 @@ class Controller():
 
     def _ac_pwm_value(self, min, max):
         if self._temperature < min:
-            self._mqtt_ac_pwm(0)
+            self._mqtt_pub(0)
             return
         
         if self._temperature >= max:
-            self._mqtt_ac_pwm(1)
+            self._mqtt_pub(1)
         else:
             ac_percentage = (self._temperature - min) / (max - min)
 
         self._ac_intensity = ac_percentage * (self._max_fan_speed - self._min_fan_speed) + self._min_fan_speed
-        self._mqtt_ac_pwm("air_cond", self._ac_intensity)
+        self._mqtt_pub("air_cond", self._ac_intensity)
 
 
     def _ht_pwm_value(self, min, max):
         if self._temperature < min:
-            self._mqtt_ht_pwm(0)
+            self._mqtt_pub(0)
             return
         
         if self._temperature >= max:
-            self._mqtt_ht_pwm(1)
+            self._mqtt_pub(1)
         else:
             ht_percentage = (max - self._temperature) / (max - min)
 
         self._ht_intensity = ht_percentage * (self._max_led_intensity - self._min_led_intensity) + self._min_led_intensity
-        self._mqtt_ht_pwm()
+        self._mqtt_pub()
 
     
     def _mqtt_pub(self, n, val):
