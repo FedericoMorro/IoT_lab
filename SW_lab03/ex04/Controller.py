@@ -569,3 +569,6 @@ class Controller():
         })
 
         return self.json_dict_to_str(payload_dict)
+    
+if __name__ == '__main__':
+    Controller()
