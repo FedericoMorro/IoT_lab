@@ -29,6 +29,8 @@ class Controller():
         - Retreive Catalog data
         """
 
+        print("Controller init...")
+
         # Temperature
         self._temperature = 0
 
@@ -150,16 +152,16 @@ class Controller():
 
         self._cat_info = self._get_catalog()
         self._mqtt_broker = {
-            "hn": self._cat_info["ep"]["m"]["hn"],
-            "pt": self._cat_info["ep"]["m"]["pt"],
-            "bt": self._cat_info["ep"]["m"]["bt"]
+            "pt": self._cat_info["ep"]["m"]["pt"][0]["v"],
+            "hn": self._cat_info["ep"]["m"]["hn"][0]["v"],
+            "bt": self._cat_info["ep"]["m"]["bt"][0]["v"]
         }
 
         # MQTT init and Catalog subscription
         self._mqtt_client = PahoMQTT.Client(self._service_id, clean_session = False)
         self._mqtt_client.on_message = self._callback_mqtt_on_message
 
-        self._sub_upd_thread = Thread(target = self._catalog_subscribe())
+        self._sub_upd_thread = Thread(target = self._catalog_subscribe)
         self._sub_upd_thread.start()
 
         self._mqtt_client.connect(self._mqtt_broker["hn"], self._mqtt_broker["pt"])
@@ -226,6 +228,7 @@ class Controller():
         reply = req.get(CATALOG_URI)
         try:
             get_output = json.loads(reply.text)
+            print(f"Get output: {get_output}")
             return get_output
         
         except ValueError as exc:
@@ -246,9 +249,11 @@ class Controller():
     
 
     def _get_arduino_data(self):
+        print("Getting devices...")
         payload = req.get(f"{CATALOG_URI}/devices")
 
-        devices_list = self._json_dict_to_str(payload.text)
+        devices_list = json.loads(payload.text)
+        print(devices_list)
 
         arduino = None
         for device in devices_list:
@@ -305,11 +310,11 @@ class Controller():
 
 
     def _topic_subscribe(self):
-        self._subscribed_topics.append(self._thresholds["ep"])
+        self._subscribed_topics.append((self._thresholds["ep"], 2))
 
         for name in self._arduino_data["pub"]:
             for topic in self._arduino_data["pub"][name]["topics"]:
-                self._subscribed_topics.append(topic)
+                self._subscribed_topics.append((topic, 2))
                 
         self._mqtt_client.subscribe(self._subscribed_topics)
         
@@ -332,7 +337,7 @@ class Controller():
                 for pl in input_dict["e"]:
                     for name in self._arduino_data["pub"]:
                         if name == pl["n"]:
-                            self._arduino_data["pub"][name]["func"]()
+                            self._arduino_data["pub"][name]["func"](int(pl["v"]))
 
         except KeyError as exc:
             print(f"ERROR: Missing or wrong key in input JSON: {exc}")
@@ -357,7 +362,7 @@ class Controller():
                     temp = self._convert_temp_to_celsius(temp, unit)
 
                 self._thresholds[topic[5]][topic[6]][topic[7]]["v"] = temp
-                self._temperature_callback()
+                self._temperature_callback(self._temperature)
 
             except KeyError as exc:
                 print(f"ERROR: Missing or wrong key in input JSON: {exc}")
@@ -431,20 +436,20 @@ class Controller():
         self._temperature = val
 
         if self._pir_presence or self._mic_presence:
-            self._ac_pwm_value(self._thresholds["ac"]["p"]["min"], self._thresholds["ac"]["p"]["max"])
-            self._ht_pwm_value(self._thresholds["ht"]["p"]["min"], self._thresholds["ht"]["p"]["max"])
+            self._ac_pwm_value(self._thresholds["ac"]["p"]["min"]["v"], self._thresholds["ac"]["p"]["max"]["v"])
+            self._ht_pwm_value(self._thresholds["ht"]["p"]["min"]["v"], self._thresholds["ht"]["p"]["max"]["v"])
         else:
-            self._ac_pwm_value(self._thresholds["ac"]["a"]["min"], self._thresholds["ac"]["a"]["max"])
-            self._ht_pwm_value(self._thresholds["ht"]["a"]["min"], self._thresholds["ht"]["a"]["max"])
+            self._ac_pwm_value(self._thresholds["ac"]["a"]["min"]["v"], self._thresholds["ac"]["a"]["max"]["v"])
+            self._ht_pwm_value(self._thresholds["ht"]["a"]["min"]["v"], self._thresholds["ht"]["a"]["max"]["v"])
 
 
     def _ac_pwm_value(self, min, max):
         if self._temperature < min:
-            self._mqtt_pub(0)
+            self._mqtt_pub("air_cond", 0)
             return
         
         if self._temperature >= max:
-            self._mqtt_pub(1)
+            self._mqtt_pub("air_cond", 255)
         else:
             self._ac_percentage = (self._temperature - min) / (max - min)
 
@@ -454,16 +459,16 @@ class Controller():
 
     def _ht_pwm_value(self, min, max):
         if self._temperature < min:
-            self._mqtt_pub(0)
+            self._mqtt_pub("heating", 255)
             return
         
         if self._temperature >= max:
-            self._mqtt_pub(1)
+            self._mqtt_pub("heating", 0)
         else:
             self._ht_percentage = (max - self._temperature) / (max - min)
 
         self._ht_intensity = self._ht_percentage * (self._max_led_intensity - self._min_led_intensity) + self._min_led_intensity
-        self._mqtt_pub()
+        self._mqtt_pub("heating", self._ht_intensity)
 
     
     def _mqtt_pub(self, n, val):
@@ -487,13 +492,13 @@ class Controller():
         self._pir_presence = 1
         self._pir_time = time.time()
 
-        self._temperature_callback()
+        self._temperature_callback(self._temperature)
 
 
     def _mic_callback(self, presence):
         self._mic_presence = presence
 
-        self._temperature_callback()
+        self._temperature_callback(self._temperature)
 
 
     def _check_timeout_presence(self):
@@ -501,8 +506,7 @@ class Controller():
             if self._pir_presence and (time.time() - self._pir_time > self._PIR_TIMEOUT):
                 self._pir_presence = 0
 
-                self._ac_pwm_value()
-                self._ht_pwm_value()
+                self._temperature_callback(self._temperature)
 
     
     def _lcd_data_send(self):
@@ -523,7 +527,7 @@ class Controller():
                 "u": ""
             })
 
-            pl = self.json_dict_to_str(payload_dict)
+            pl = self._json_dict_to_str(payload_dict)
 
             for name in self._arduino_data["sub"]:
                 if name == "lcd":
@@ -543,17 +547,17 @@ class Controller():
             payload_dict["e"].append({
                 "n": "lcd",
                 "t": int(time.time()),
-                "v": f'AC: m:{self._thresholds["ac"][flg]["min"]:.1f} M:{self._thresholds["ac"][flg]["max"]}',
+                "v": f'AC: m:{self._thresholds["ac"][flg]["min"]} M:{self._thresholds["ac"][flg]["max"]}',
                 "u": ""
             })
             payload_dict["e"].append({
                 "n": "lcd",
                 "t": int(time.time()),
-                "v": f'AC: m:{self._thresholds["ht"][flg]["min"]:.1f} M:{self._thresholds["ht"][flg]["max"]}',
+                "v": f'AC: m:{self._thresholds["ht"][flg]["min"]} M:{self._thresholds["ht"][flg]["max"]}',
                 "u": ""
             })
 
-            pl = self.json_dict_to_str(payload_dict)
+            pl = self._json_dict_to_str(payload_dict)
 
             for name in self._arduino_data["sub"]:
                 if name == "lcd":
@@ -586,7 +590,7 @@ class Controller():
             "u": ""
         })
 
-        return self.json_dict_to_str(payload_dict)
+        return self._json_dict_to_str(payload_dict)
     
 if __name__ == '__main__':
     Controller()

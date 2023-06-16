@@ -17,7 +17,7 @@ class Catalog():
     exposed = True
 
     def __init__(self):
-        self._max_timestamp = 120
+        self._max_timestamp = 1200
         self._delay_check_timestamp = 60
 
         self._db_name = DB_NAME

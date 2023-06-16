@@ -87,9 +87,9 @@ void callback(char *topic, byte *payload, unsigned int length) {
 
         if ((int) json_received_catalog["in"]["e"] == 0) {
             Serial.println("[DEBUG] Refreshed subscribtion to Catalog");
-            return;
         } else {
-            Serial.println("[DEBUG] Error in refresh to Catalog: ");
+            Serial.println("[DEBUG] Error in refresh to Catalog: \nRetrying ...");
+            refresh_catalog_subscription();
         }
 
     }

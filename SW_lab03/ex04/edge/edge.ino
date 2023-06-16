@@ -1,7 +1,6 @@
 #include <PDM.h>
 #include <LiquidCrystal_PCF8574.h>
 #include <Wire.h>
-#include <Scheduler.h>
 
 #include <WiFiNINA.h>
 #include <ArduinoHttpClient.h>
@@ -113,7 +112,7 @@ void refresh_catalog_subscription();
 void check_mqtt_msg();
 String sen_ml_encode(String dev, double val, String unit);
 
-void callback();
+void callback(char *topic, byte *payload, unsigned int length);
 /*
  *  END CONNECTIVITY FUNCTIONS AND VARIABLES DECLARATIONS
  */
@@ -160,6 +159,9 @@ int microphone_time;
 const int single_event_duration = 100;      // ms
 int buffer_past_samples_cnt[BUFFER_SIZE_SAMPLES_CNT];
 int current_pos;
+
+int tim_sound;
+
 void loop_update_audio_samples_cnt();
 
 // Display
@@ -212,7 +214,8 @@ void setup() {
         buffer_past_samples_cnt[i] = 0;
     }
     current_pos = 0;
-    Scheduler.startLoop(loop_update_audio_samples_cnt);
+    
+    tim_sound = millis();
     /* END PIR AND MIC PRESENCE SETUP */
 
 
@@ -237,6 +240,11 @@ void loop() {
 
     Serial.print("[DEBUG] PIR presence: "); Serial.print(pir_presence);
     Serial.print(";\tMicrophone presence: "); Serial.println(microphone_presence);
+
+    if (millis() - tim_sound >= sound_interval / BUFFER_SIZE_SAMPLES_CNT) {
+        loop_update_audio_samples_cnt();
+        tim_sound = millis();
+    }
     
     delay(2000);
 }
@@ -303,8 +311,6 @@ void loop_update_audio_samples_cnt() {
         String output = sen_ml_encode(pub_res[PUB_IND_MIC].name, microphone_presence, "");
         mqtt_client.publish((base_topic + pub_res[PUB_IND_MIC].ep).c_str(), output.c_str());
     }
-
-    delay(sound_interval / BUFFER_SIZE_SAMPLES_CNT);
 }
 
 
@@ -486,6 +492,10 @@ void mqtt_reconnect() {
 
             // Subscribe to led topic
             mqtt_client.subscribe((base_topic + String("/led")).c_str());
+
+            for (int i = 0; i < N_SUB_RES; i++) {
+                mqtt_client.subscribe((base_topic + String(sub_res[i].ep)).c_str());
+            }
 
             // Subscribe to catalog to get response
             mqtt_client.subscribe((catalog_base_topic + String("/") + String(device_id)).c_str());
