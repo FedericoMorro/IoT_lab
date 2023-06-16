@@ -6,7 +6,7 @@ import time
 import threading
 
 
-CATALOG_IP_ADDR = "192.168.151.123"
+CATALOG_IP_ADDR = "192.168.134.123"
 CATALOG_PORT = 8080
 
 DB_NAME = "db_catalog.db"

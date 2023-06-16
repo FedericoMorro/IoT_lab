@@ -3,7 +3,7 @@ import json
 import paho.mqtt.client as PahoMQTT
 
 from threading import Thread
-from time import time
+import time
 
 
 # Base Topic
@@ -13,7 +13,7 @@ BASE_TOPIC = "/tiot/g03/ctrl"
 ARDUINO_ID = "ard"
 
 # Server (Catalog) IP and port
-CATALOG_IP = "127.0.0.1"
+CATALOG_IP = "192.168.134.123"
 CATALOG_PORT = 8080
 
 CATALOG_URI = f"http://{CATALOG_IP}:{CATALOG_PORT}"
@@ -120,7 +120,17 @@ class Controller():
 
         self._service_id = "IoT_Lab_G3_Controller"
         self._mqtt_ep = {
-            "s": [],
+            "s": [
+                {"v": f"{BASE_TOPIC}/thr/ac/a/min", "t": "mi_aa"},
+                {"v": f"{BASE_TOPIC}/thr/ac/a/max", "t": "ma_aa"},
+                {"v": f"{BASE_TOPIC}/thr/ac/p/min", "t": "mi_ap"},
+                {"v": f"{BASE_TOPIC}/thr/ac/p/max", "t": "ma_ap"},
+                {"v": f"{BASE_TOPIC}/thr/ht/a/min", "t": "mi_ha"},
+                {"v": f"{BASE_TOPIC}/thr/ht/a/max", "t": "ma_ha"},
+                {"v": f"{BASE_TOPIC}/thr/ht/p/min", "t": "mi_hp"},
+                {"v": f"{BASE_TOPIC}/thr/ht/p/max", "t": "ma_hp"},
+                {"v": f"{BASE_TOPIC}/p", "t": "p_to"}
+            ],
             "p": []
         }
         self._resources = [
@@ -465,8 +475,16 @@ class Controller():
                     self._mqtt_client.publish(topic, pl, qos = 2)
 
 
+    def _check_pir_timeout(self):
+        while True:
+            if time.time() - self._pir_time > self._pir_timeout_info["v"]:
+                self._pir_presence = 0
+
+            time.sleep(self._pir_timeout_info["v"])
+
+
     def _pir_callback(self, presence):
-        self._pir_presence = presence
+        self._pir_presence = 1
         self._pir_time = time.time()
 
         self._temperature_callback()

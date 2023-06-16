@@ -58,6 +58,9 @@ sub_resource sub_res[N_SUB_RES] = {
 /*
  *  CONNECTIVITY FUCNTIONS AND VARIABLES DECLARATIONS
  */
+
+#define CATALOG_TIMEOUT 60000
+
 // Id
 char device_id[] = "ard";
 
@@ -68,7 +71,7 @@ int status = WL_IDLE_STATUS;
 WiFiClient wifi;
 
 // Catalog
-char catalog_address[] = "192.168.151.123";    // to be modified
+char catalog_address[] = "192.168.134.123";    // to be modified
 int catalog_port = 8080;
 HttpClient http_client = HttpClient(wifi, catalog_address, catalog_port);
 String catalog_base_topic;
@@ -90,14 +93,14 @@ int tim_refresh_catalog;
 int tim_mqtt_pub;
 
 // JSON
-const int capacity_sen_ml = JSON_OBJECT_SIZE(2) + JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(4) + 100;
+const int capacity_sen_ml = JSON_OBJECT_SIZE(2) + JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(4) + 1000;
 DynamicJsonDocument json_sent_sen_ml(capacity_sen_ml);
 DynamicJsonDocument json_received_sen_ml(capacity_sen_ml);
 
-const int capacity_cat = JSON_OBJECT_SIZE(6) + JSON_ARRAY_SIZE(1) + 100;
+const int capacity_cat = JSON_OBJECT_SIZE(6) + JSON_ARRAY_SIZE(1) + 1000;
 DynamicJsonDocument json_received_catalog(capacity_cat);
 
-const int capacity_cat_subscription = JSON_OBJECT_SIZE(6) + JSON_ARRAY_SIZE(2) + JSON_OBJECT_SIZE(4) + 200;
+const int capacity_cat_subscription = JSON_OBJECT_SIZE(6) + JSON_ARRAY_SIZE(2) + JSON_OBJECT_SIZE(4) + 2000;
 DynamicJsonDocument json_sent_catalog(capacity_cat_subscription);
 
 
@@ -224,6 +227,10 @@ void setup() {
 
 
 void loop() {
+    if (millis() - tim_refresh_catalog >= CATALOG_TIMEOUT) {
+        refresh_catalog_subscription();
+    }
+
     compute_temperature();
 
     // pir presence timeout moved to Controller.py
@@ -411,9 +418,15 @@ void connectivity_setup() {
     mqtt_client.setServer(broker_address.c_str(), broker_port);
     mqtt_client.setCallback(callback);
 
+    #if SERIAL_DEBUG
+        Serial.println(broker_address + " " + broker_port);
+    #endif
+
     tim_check_mqtt_msg = millis();
     tim_refresh_catalog = millis();
     tim_mqtt_pub = millis();
+
+    refresh_catalog_subscription();
 }
 
 
@@ -456,11 +469,11 @@ void get_mqtt_broker() {
     broker_address = String(tmp);
     broker_port = json_received_catalog["ep"]["m"]["pt"][0]["v"];
 
-    tmp = json_received_catalog["ep"]["m"]["bt"][0]["v"];
-    catalog_base_topic = String(tmp) + String("/devices");
+    const char *tmp_ = json_received_catalog["ep"]["m"]["bt"][0]["v"];
+    catalog_base_topic = String(tmp_) + String("/devices");
 
     #if SERIAL_DEBUG
-        Serial.println("[DEBUG] Broker info: " + broker_address + ":" + broker_port + "; base_topic: " + base_topic);
+        Serial.println("[DEBUG] Broker info: " + broker_address + ":" + broker_port + "; base_topic: " + catalog_base_topic);
     #endif
 }
 
@@ -493,6 +506,10 @@ void refresh_catalog_subscription() {
     if (mqtt_client.state() != MQTT_CONNECTED) {
         mqtt_reconnect();
     }
+
+    #if SERIAL_DEBUG
+        Serial.println("Connected to MQTT");
+    #endif
 
     /*
      * pub: /temp, /pir, /mic
