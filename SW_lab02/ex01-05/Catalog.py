@@ -183,8 +183,8 @@ class Catalog():
         
             input_dict = json.loads(input_str)
 
-            # Add the new item to the database
-            self.insert_item(
+            # Add the new item to the database (update is used to be more flexible)
+            self.update_item(
                 json_dict= input_dict,
                 type= uri[0].removesuffix("s"),
                 timestamp= int(time.time()),
