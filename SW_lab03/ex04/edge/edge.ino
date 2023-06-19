@@ -112,7 +112,20 @@ void refresh_catalog_subscription();
 void check_mqtt_msg();
 String sen_ml_encode(String dev, double val, String unit);
 
-void callback(char *topic, byte *payload, unsigned int length);
+void callback(char *topic, byte *payload, unsigned int length) {
+    #if SERIAL_DEBUG
+        Serial.println(String("Message received on topic: ") + topic);
+    #endif
+
+    String topic_string = String(topic);
+    for (int i = 0; i < N_SUB_RES; i++) {
+        if (topic_string == (base_topic + sub_res[i].ep)) {
+            sub_res[i].res_callback(payload, length);
+        }
+    }
+
+    return;  
+}
 /*
  *  END CONNECTIVITY FUNCTIONS AND VARIABLES DECLARATIONS
  */
@@ -317,23 +330,6 @@ void loop_update_audio_samples_cnt() {
 /*
  * CONNECTIVITY FUNCTIONS
  */
-
-void callback(char *topic, byte *payload, unsigned int length) {
-    #if SERIAL_DEBUG
-        Serial.println(String("Message received on topic: ") + topic);
-    #endif
-
-    String topic_string = String(topic);
-    for (int i = 0; i < N_SUB_RES; i++) {
-        if (topic_string == (base_topic + sub_res[i].ep)) {
-            sub_res[i].res_callback(payload, length);
-        }
-    }
-
-    return;  
-}
-
-
 void ac_callback(byte *payload, unsigned int length) {
     DeserializationError err = deserializeJson(json_received_sen_ml, (char *)payload);
 
