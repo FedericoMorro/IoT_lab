@@ -158,7 +158,8 @@ uint8_t presence;
 
 // Pir sensor
 uint8_t pir_presence;
-void pir_presence_isr();
+uint8_t pir_status;
+void pir_presence_routing();
 
 // Microphone
 uint8_t microphone_presence;
@@ -209,7 +210,6 @@ void setup() {
     /* PIR AND MIC PRESENCE SETUP */
     presence = 0;
     
-    attachInterrupt(digitalPinToInterrupt(PIR_PIN), pir_presence_isr, CHANGE);
     pir_presence = 0;
 
     air_conditioning_intensity = 0;
@@ -239,6 +239,8 @@ void setup() {
     lcd.setBacklight(255);
     display_state = 1;
     /* END LCD SCREEN SETUP */
+
+    pir_status = digitalRead(PIR_PIN);
 }
 
 
@@ -247,6 +249,11 @@ void loop() {
         refresh_catalog_subscription();
     }
 
+    uint8_t pir_tmp = digitalRead(PIR_PIN);
+    if (pir_tmp != pir_status) {
+        pir_presence_routine();
+        pir_status = pir_tmp;
+    }
     compute_temperature();
 
     // pir presence timeout moved to Controller.py
@@ -275,7 +282,7 @@ void compute_temperature() {
 }
 
 
-void pir_presence_isr() {
+void pir_presence_routine() {
     uint8_t prev_pir_pres = pir_presence;
     pir_presence = 1;
 
