@@ -22,7 +22,7 @@ solution.
 This repository has been made by:
 - [Federico Morro, s282451](https://github.com/FedericoMorro)
 - [Francesco Imparato, s283039](https://github.com/fraimparato)
-- Bernardo Fagundes Fontes, s270646
+- [Bernardo Fagundes Fontes, s270646](https://github.com/Hamrrick)
 
 <!-- Group 3 -->
 
