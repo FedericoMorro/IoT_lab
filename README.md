@@ -1,11 +1,11 @@
 # Technologies for IoT Laboratories 2022/23
 
-This is the repository used for the laboratories of "Tecnologies for IoT" course
+This is the repository used for the laboratories of "Technologies for IoT" course
 at Politecnico di Torino.
 
 ## Repository structure
 
-This repository is structured based on the laboratories of the course.
+The structure of this project is based on the laboratories given during the course.
 
 In the root folder you will find each laboratory part (both hardware and
 software) of the course. The files in the folders are divided in a way which
