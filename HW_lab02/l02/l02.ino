@@ -12,7 +12,7 @@
 #define PIR_PIN       7
 
 #define SAMPLE_BUFFER_SIZE      256
-#define BUFFER_SIZE_SAMPLES_CNT 100
+#define BUFFER_SIZE_SAMPLES_CNT 360
 
 
 // Temperature sensor
@@ -26,7 +26,7 @@ uint8_t air_conditioning_intensity;
 float ac_percentage;
 float min_ac_absence = 20;
 float max_ac_absence = 25;
-float min_ac_presence = 25;//20;
+float min_ac_presence = 20;
 float max_ac_presence = 30;
 uint8_t ac_pwm_value(float temp, float min, float max);
 
@@ -36,10 +36,10 @@ const uint8_t max_fan_speed = 255;
 // Heating system (red led)
 uint8_t heating_intensity;
 float ht_percentage;
-float min_h_absence = 20;//10;
-float max_h_absence = 25;//15;
-float min_h_presence = 25;//10;
-float max_h_presence = 30;//20;
+float min_h_absence = 10;
+float max_h_absence = 15;
+float min_h_presence = 10;
+float max_h_presence = 20;
 uint8_t h_pwm_value(float temp, float min, float max);
 
 const uint8_t min_led_intensity = 0;
@@ -56,9 +56,9 @@ void pir_presence_isr();
 
 // Microphone
 uint8_t microphone_presence;
-const uint8_t n_sound_events = 10;   // tbc
-const int sound_threshold = 10000;    // tbc
-const int sound_interval = 20 * 1000;   //60 * 60 * 1000;
+const uint8_t n_sound_events = 10;
+const int sound_threshold = 8000;
+const int sound_interval = 60 * 60 * 1000;
 short sample_buffer[SAMPLE_BUFFER_SIZE];      // buffer to read sample into, each sample is 16-bit
 void on_PDM_data();
 int current_samples_read_cnt;
@@ -67,6 +67,12 @@ const int single_event_duration = 100;      // ms
 int buffer_past_samples_cnt[BUFFER_SIZE_SAMPLES_CNT];
 int current_pos;
 void loop_update_audio_samples_cnt();
+/*
+ * Microphone events with magnitude greater than sound threshold count are stored in the circular buffer
+ *  buffer_past_samples_cnt, which has one element for each 10 seconds
+ * If the number of events in the last hour (sound_interval) is bigger than n_sound_events, then the
+ *  microphone presence will be set on
+*/
 
 // Display
 LiquidCrystal_PCF8574 lcd(0x20);

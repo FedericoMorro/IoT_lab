@@ -114,7 +114,6 @@ void callback(char *topic, byte *payload, unsigned int length) {
 
 // PubSub client
 PubSubClient mqtt_client(wifi);
-//PubSubClient client(broker_address.c_str(), broker_port, callback, wifi);
 
 int tim_check_mqtt_msg;
 int tim_refresh_catalog;

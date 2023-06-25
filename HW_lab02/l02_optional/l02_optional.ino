@@ -24,7 +24,7 @@ uint8_t air_conditioning_intensity;
 float ac_percentage;
 float min_ac_absence = 20;
 float max_ac_absence = 25;
-float min_ac_presence = 25;//20;
+float min_ac_presence = 20;
 float max_ac_presence = 30;
 uint8_t ac_pwm_value(float temp, float min, float max);
 
@@ -33,10 +33,10 @@ const uint8_t max_fan_speed = 255;
 
 uint8_t heating_intensity;
 float ht_percentage;
-float min_h_absence = 20;//10;
-float max_h_absence = 25;//15;
-float min_h_presence = 25;//10;
-float max_h_presence = 30;//20;
+float min_h_absence = 10;
+float max_h_absence = 15;
+float min_h_presence = 10;
+float max_h_presence = 20;
 uint8_t h_pwm_value(float temp, float min, float max);
 
 const uint8_t min_led_intensity = 0;
@@ -51,7 +51,7 @@ void pir_presence_isr();
 
 uint8_t microphone_presence;
 const uint8_t n_sound_events = 2;
-const int sound_threshold = 10000;    // still to be checked
+const int sound_threshold = 10000;
 const int sound_interval = 2 * 1000;
 short sample_buffer[SAMPLE_BUFFER_SIZE];      // buffer to read sample into, each sample is 16-bit
 void on_PDM_data();
